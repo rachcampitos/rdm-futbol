@@ -1,0 +1,1704 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap');
+
+/* ── CSS Variables ── */
+:root {
+  --bg:      #03091a;
+  --bg2:     #060f24;
+  --bg3:     #0a162e;
+  --bg4:     #0e1d3a;
+  --card:    rgba(255,255,255,0.04);
+  --card2:   rgba(255,255,255,0.07);
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --border3: rgba(255,255,255,0.22);
+  --gold:    #f0c040;
+  --gold2:   #c9971f;
+  --gold3:   #ffe566;
+  --gold-glow: rgba(240,192,64,0.35);
+  --cyan:    #00d4ff;
+  --cyan2:   #0099cc;
+  --cyan-glow: rgba(0,212,255,0.25);
+  --red2:    #ef4444;
+  --green:   #10b981;
+  --text:    #ffffff;
+  --text2:   rgba(255,255,255,0.6);
+  --text3:   rgba(255,255,255,0.35);
+  --radius:  12px;
+  --radius2: 16px;
+}
+
+/* ── Reset ── */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Stadium lights noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 0%, rgba(240,192,64,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(16,185,129,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root { min-height: 100vh; position: relative; z-index: 1; }
+
+/* ── App shell ── */
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+/* ── Header — FIFA title screen style ── */
+.header {
+  position: relative;
+  background:
+    linear-gradient(180deg, #000918 0%, #040d21 30%, #071228 70%, #040d21 100%);
+  padding: 20px 20px 16px;
+  text-align: center;
+  border-bottom: 1px solid rgba(240,192,64,0.3);
+  overflow: hidden;
+}
+
+/* Scanline shimmer */
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.012) 2px,
+    rgba(255,255,255,0.012) 4px
+  );
+  pointer-events: none;
+}
+
+/* Top glow arc — stadium floodlights */
+.header::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 120px;
+  background: radial-gradient(ellipse, rgba(240,192,64,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(240,192,64,0.3);
+  border-radius: 20px;
+  padding: 3px 12px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.header-badge-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--gold);
+  animation: blink-live 1.8s ease infinite;
+}
+.header-badge-text {
+  font-size: 9px; font-weight: 700; color: var(--gold);
+  letter-spacing: 3px; text-transform: uppercase;
+}
+
+.header-title {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  line-height: 1;
+  position: relative;
+  /* Gold metallic gradient */
+  background: linear-gradient(180deg, var(--gold3) 0%, var(--gold) 45%, var(--gold2) 80%, #a07010 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(240,192,64,0.5));
+}
+
+.header-subtitle {
+  font-size: 10px;
+  color: var(--text2);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-top: 4px;
+  position: relative;
+}
+
+.header-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+.header-line-bar {
+  height: 1px;
+  width: 50px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.header-line-diamond {
+  width: 5px; height: 5px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px var(--gold);
+}
+
+/* ── Nav — FIFA bottom tab bar ── */
+.nav {
+  display: flex;
+  background: var(--bg2);
+  border-bottom: 1px solid rgba(240,192,64,0.15);
+  position: sticky; top: 0; z-index: 200;
+  backdrop-filter: blur(10px);
+}
+
+.nav-tab {
+  flex: 1; padding: 10px 4px 9px; text-align: center;
+  cursor: pointer; border: none; background: transparent;
+  color: var(--text3);
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s, background .2s;
+  user-select: none;
+  position: relative;
+}
+.nav-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(240,192,64,0.06) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.nav-tab:hover { color: var(--text2); }
+.nav-tab:hover::before { opacity: 1; }
+.nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.nav-tab.active::before { opacity: 1; }
+.nav-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+.nav-label { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-family: 'Rajdhani', sans-serif; }
+
+/* ── Page ── */
+.page { padding: 14px; flex: 1; }
+
+.page-title {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-title span { color: var(--gold); }
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+/* ── Stats row ── */
+.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+
+.stat-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 8px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.stat-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: .5;
+}
+.stat-num {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--gold);
+}
+.stat-label { font-size: 9px; color: var(--text2); text-transform: uppercase; letter-spacing: .8px; margin-top: 3px; font-weight: 600; }
+
+/* ── Player row ── */
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 7px;
+  transition: border-color .2s, background .2s;
+  position: relative;
+  overflow: hidden;
+}
+.player-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--border2);
+  transition: background .2s;
+}
+.player-row.confirmed {
+  border-color: rgba(16,185,129,0.35);
+  background: rgba(16,185,129,0.04);
+}
+.player-row.confirmed::before { background: #10b981; }
+.player-row.baja {
+  border-color: rgba(239,68,68,0.2);
+  opacity: .55;
+}
+.player-row.baja::before { background: var(--red2); }
+
+.player-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700;
+  flex-shrink: 0; background: var(--bg3); border: 2px solid var(--border2); color: var(--text);
+}
+.player-info { flex: 1; min-width: 0; }
+.player-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-pos-badge {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 4px; letter-spacing: 1px; margin-top: 2px;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+/* ── Action toggles ── */
+.player-actions { display:flex; gap:5px; flex-shrink:0; }
+
+.toggle-btn {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: transparent; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; color: var(--text3);
+  font-family: 'Rajdhani', sans-serif; font-weight: 700;
+}
+.toggle-btn:hover { border-color: var(--text2); color: var(--text2); }
+.toggle-btn.on-confirm { background: rgba(16,185,129,.15); border-color: #10b981; color: #10b981; }
+.toggle-btn.on-pay     { background: rgba(240,192,64,.15);  border-color: var(--gold); color: var(--gold); }
+.toggle-btn.on-baja    { background: rgba(239,68,68,.15);   border-color: var(--red2); color: var(--red2); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 13px;
+  cursor: pointer; border: none; transition: all .15s;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  font-family: 'Rajdhani', sans-serif;
+  position: relative; overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left .4s;
+}
+.btn:hover::before { left: 150%; }
+
+.btn-gold {
+  background: linear-gradient(135deg, #f0c040 0%, #c9971f 50%, #f0c040 100%);
+  background-size: 200% 100%;
+  color: #1a1000;
+  box-shadow: 0 0 15px rgba(240,192,64,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.btn-gold:hover {
+  background-position: 100% 0;
+  box-shadow: 0 0 25px rgba(240,192,64,0.55), inset 0 1px 0 rgba(255,255,255,0.3);
+  transform: translateY(-1px);
+}
+.btn-gold:active { transform: translateY(0); }
+
+.btn-outline {
+  background: transparent; color: var(--text2);
+  border: 1px solid var(--border2);
+}
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+
+.btn-danger { background: rgba(220,38,38,.12); color: var(--red2); border: 1px solid rgba(220,38,38,.3); }
+.btn-danger:hover { background: rgba(220,38,38,.22); }
+.btn-full { width: 100%; }
+.btn-sm { padding: 5px 12px; font-size: 11px; }
+
+/* ── Section label ── */
+.section-label {
+  font-size: 9px; font-weight: 700; color: var(--text3);
+  letter-spacing: 2.5px; text-transform: uppercase;
+  margin-bottom: 8px; margin-top: 16px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Rajdhani', sans-serif;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::before {
+  content: '';
+  display: inline-block;
+  width: 2px; height: 10px;
+  background: var(--gold);
+  border-radius: 1px;
+}
+.section-label:first-child { margin-top: 0; }
+
+/* ── Form ── */
+.form-group { margin-bottom: 12px; }
+.form-label {
+  display: block; font-size: 10px; color: var(--text2);
+  font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;
+  font-family: 'Rajdhani', sans-serif;
+}
+.form-input {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px;
+  font-family: inherit; outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(240,192,64,0.12); }
+.form-input::placeholder { color: var(--text3); }
+
+.pos-selector { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.pos-option {
+  padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border2);
+  background: transparent; cursor: pointer; text-align: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px; transition: all .15s; color: var(--text2);
+  font-family: 'Rajdhani', sans-serif;
+}
+.pos-option.selected { border-color: var(--gold); color: var(--gold); background: rgba(240,192,64,.08); }
+
+/* ── Modal ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.8);
+  z-index: 500; display: flex; align-items: flex-end;
+  backdrop-filter: blur(6px);
+}
+.modal {
+  background: var(--bg2);
+  border: 1px solid rgba(240,192,64,0.2);
+  border-radius: 20px 20px 0 0;
+  padding: 20px; width: 100%; max-width: 480px; margin: 0 auto;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6), 0 -1px 0 rgba(240,192,64,0.3);
+}
+.modal-title {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 400;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  color: var(--gold);
+}
+.modal-close {
+  background: var(--card); border: 1px solid var(--border); color: var(--text2);
+  border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.modal-close:hover { border-color: var(--gold); color: var(--gold); }
+
+/* ── FIELD / CANCHA ── */
+.field-wrap {
+  position: relative; width: 100%; padding-bottom: 168%;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow:
+    0 0 60px rgba(0,0,0,.8),
+    0 0 30px rgba(16,185,129,0.08),
+    inset 0 0 60px rgba(0,0,0,.3);
+}
+
+/* Grass gradient — realistic turf with mow stripes */
+.field-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    #0d3d13 0%,
+    #1a5c1f 8%,
+    #1d6622 15%,
+    #195c1d 22%,
+    #1d6622 30%,
+    #195c1d 38%,
+    #1d6622 45%,
+    #195c1d 52%,
+    #1d6622 60%,
+    #195c1d 68%,
+    #1d6622 76%,
+    #195c1d 84%,
+    #1d6622 92%,
+    #0d3d13 100%
+  );
+}
+
+/* Alternating turf mow stripes */
+.field-bg::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.04) 4.5%,
+    transparent 4.5%,
+    transparent 9%
+  );
+}
+
+/* Stadium floodlight vignette + haze */
+.field-bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,220,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 100%, rgba(255,255,220,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,0.35) 100%);
+}
+
+.field-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.field-player {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  z-index: 10;
+  transition: transform .3s ease;
+}
+.field-player:hover { transform: translate(-50%, -52%) scale(1.08); }
+
+.field-player-circle {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow:
+    0 3px 12px rgba(0,0,0,.7),
+    0 0 0 1px rgba(255,255,255,0.1);
+  color: #fff;
+  position: relative;
+}
+
+.field-player-name {
+  font-size: 8.5px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,0.8);
+  white-space: nowrap;
+  max-width: 54px; overflow: hidden; text-overflow: ellipsis; text-align: center;
+  background: rgba(0,0,0,0.65);
+  border-radius: 3px; padding: 1px 4px;
+  letter-spacing: 0.3px;
+}
+
+.team-a-circle {
+  background: linear-gradient(145deg, #1a3a8f 0%, #1565c0 50%, #0d47a1 100%);
+  box-shadow: 0 3px 12px rgba(0,0,0,.7), 0 0 10px rgba(21,101,192,0.5);
+}
+.team-b-circle {
+  background: linear-gradient(145deg, #8f1a1a 0%, #c62828 50%, #b71c1c 100%);
+  box-shadow: 0 3px 12px rgba(0,0,0,.7), 0 0 10px rgba(198,40,40,0.5);
+}
+
+/* ── Team legend ── */
+.team-legend { display: flex; gap: 8px; margin-bottom: 10px; }
+
+.team-badge {
+  flex: 1; padding: 10px 8px; border-radius: 8px; text-align: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  position: relative; overflow: hidden;
+}
+.team-badge::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: currentColor;
+  opacity: .4;
+}
+.team-badge-a {
+  background: rgba(21,101,192,.15);
+  border: 1px solid rgba(21,101,192,.4);
+  color: #90caf9;
+}
+.team-badge-b {
+  background: rgba(185,28,28,.15);
+  border: 1px solid rgba(185,28,28,.4);
+  color: #fca5a5;
+}
+
+/* ── FUT Player Card styles ── */
+.fut-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fut-card {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  aspect-ratio: 0.72;
+  user-select: none;
+}
+.fut-card:hover {
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Rarity tiers */
+.fut-card-bronze {
+  background: linear-gradient(160deg, #5c3a1e 0%, #8b5e3c 40%, #6b4423 70%, #4a2e14 100%);
+  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 0 8px rgba(160,100,60,0.3);
+  border: 1px solid rgba(160,100,60,0.4);
+}
+.fut-card-silver {
+  background: linear-gradient(160deg, #2a2a3a 0%, #4a4a6a 40%, #3a3a50 70%, #1e1e2e 100%);
+  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 0 8px rgba(150,150,200,0.25);
+  border: 1px solid rgba(150,150,200,0.3);
+}
+.fut-card-gold {
+  background: linear-gradient(160deg, #2a1f00 0%, #5a4010 35%, #7a5818 50%, #5a4010 65%, #2a1f00 100%);
+  box-shadow: 0 4px 24px rgba(0,0,0,.7), 0 0 16px rgba(240,192,64,0.3);
+  border: 1px solid rgba(240,192,64,0.4);
+}
+.fut-card-gold::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg,
+    transparent 0%, rgba(240,192,64,0.08) 30%,
+    rgba(255,220,100,0.12) 50%, rgba(240,192,64,0.08) 70%, transparent 100%
+  );
+  pointer-events: none;
+}
+.fut-card-elite {
+  background: linear-gradient(160deg, #0a0020 0%, #1a0050 30%, #2a0080 50%, #1a0050 70%, #0a0020 100%);
+  box-shadow: 0 4px 24px rgba(0,0,0,.8), 0 0 20px rgba(120,60,255,0.35);
+  border: 1px solid rgba(140,80,255,0.5);
+}
+.fut-card-elite::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(140,80,255,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 70%, rgba(0,180,255,0.1) 0%, transparent 60%);
+  pointer-events: none;
+  animation: holographic 4s ease infinite;
+}
+
+@keyframes holographic {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* FUT Card inner layout */
+.fut-card-inner {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: 8px 7px 6px;
+}
+
+.fut-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.fut-card-overall {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  letter-spacing: -1px;
+}
+
+.fut-card-pos {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 1px;
+  text-align: left;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+.fut-card-flag {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.fut-card-avatar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.fut-card-avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 700;
+  background: rgba(0,0,0,0.35);
+  border: 2px solid rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+.fut-card-name {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  padding: 0 2px;
+}
+
+.fut-card-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+  margin: 4px 0;
+}
+
+.fut-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.fut-card-stat {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.fut-card-stat-num {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px; font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  line-height: 1;
+}
+
+.fut-card-stat-label {
+  font-size: 7px; font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+/* Inactive card overlay */
+.fut-card-inactive .fut-card-avatar {
+  filter: grayscale(1) opacity(0.5);
+}
+.fut-card-inactive-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+}
+.fut-card-inactive-badge {
+  background: rgba(0,0,0,0.8);
+  border: 1px solid rgba(239,68,68,0.5);
+  color: var(--red2);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 4px;
+}
+
+/* Card action strip */
+.fut-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  justify-content: center;
+}
+.fut-card-action-btn {
+  padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3); color: rgba(255,255,255,0.65);
+  font-size: 9px; font-weight: 700; cursor: pointer;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  transition: all .15s;
+}
+.fut-card-action-btn:hover { border-color: var(--gold); color: var(--gold); }
+.fut-card-action-btn.active { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.1); }
+
+/* ── Animations ── */
+@keyframes shuffle {
+  0%   { transform: scale(1) rotate(0deg); }
+  20%  { transform: scale(1.15) rotate(-8deg) translateX(-5px); }
+  40%  { transform: scale(0.9) rotate(8deg) translateX(5px); }
+  60%  { transform: scale(1.12) rotate(-5deg) translateX(-3px); }
+  80%  { transform: scale(0.95) rotate(5deg) translateX(3px); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.shuffling { animation: shuffle .5s ease-in-out 3; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeInUp .4s ease forwards; }
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240,192,64,.5); }
+  50%       { box-shadow: 0 0 0 10px rgba(240,192,64,0); }
+}
+.pulse-gold { animation: pulse-gold 1.2s ease infinite; }
+
+@keyframes blink-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes card-reveal {
+  0%   { transform: scale(0.8) rotateY(90deg); opacity: 0; }
+  60%  { transform: scale(1.05) rotateY(-5deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+.card-reveal { animation: card-reveal .5s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+@keyframes sorteo-spin {
+  0%   { transform: rotate(0deg) scale(1); }
+  25%  { transform: rotate(180deg) scale(1.2); }
+  50%  { transform: rotate(360deg) scale(0.9); }
+  75%  { transform: rotate(540deg) scale(1.15); }
+  100% { transform: rotate(720deg) scale(1); }
+}
+.sorteo-spinning { animation: sorteo-spin .8s ease-in-out 2; }
+
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(240,192,64,0.4)); }
+  50%       { filter: drop-shadow(0 0 12px rgba(240,192,64,0.8)); }
+}
+.glow-anim { animation: glow-pulse 2s ease infinite; }
+
+/* ── Sorteo screen — epic draw ── */
+.sorteo-draw-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 20px;
+  gap: 16px;
+}
+
+.sorteo-ball {
+  font-size: 56px;
+  line-height: 1;
+  filter: drop-shadow(0 0 16px rgba(240,192,64,0.6));
+}
+
+.sorteo-label {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 400;
+  color: var(--gold); letter-spacing: 4px;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(240,192,64,0.5);
+}
+
+.sorteo-dots {
+  display: flex; gap: 6px;
+}
+.sorteo-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold);
+  animation: blink-live 1s ease infinite;
+}
+.sorteo-dot:nth-child(2) { animation-delay: .2s; }
+.sorteo-dot:nth-child(3) { animation-delay: .4s; }
+
+/* ── Penalty card ── */
+.penalty-card {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 7px;
+  position: relative; overflow: hidden;
+}
+.penalty-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--red2);
+}
+.penalty-card.pagado { opacity: .4; }
+.penalty-card.pagado::before { background: var(--green); }
+.penalty-amount {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 20px; font-weight: 400; color: var(--gold); white-space: nowrap;
+}
+.penalty-info { flex: 1; min-width: 0; }
+.penalty-name { font-weight: 600; font-size: 14px; }
+.penalty-meta { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+/* ── Misc ── */
+.cuota-display {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 40px; font-weight: 400; color: var(--gold); text-align: center;
+  padding: 8px 0; letter-spacing: 2px;
+  text-shadow: 0 0 20px rgba(240,192,64,0.3);
+}
+
+.empty-state { text-align: center; padding: 32px 16px; color: var(--text3); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; display: block; opacity: .6; }
+.empty-text { font-size: 14px; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+.week-label { font-size: 10px; color: var(--text3); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; font-family: 'Rajdhani', sans-serif; }
+.week-date { font-family: 'Bebas Neue', 'Rajdhani', sans-serif; font-size: 24px; font-weight: 400; color: var(--text); margin-top: 2px; letter-spacing: 1px; }
+
+.progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold2), var(--gold), var(--gold3)); border-radius: 2px; transition: width .5s ease; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(240,192,64,0.3); border-radius: 3px; }
+
+/* ── Week card accent ── */
+.week-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.week-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--gold2), var(--gold), var(--gold3), var(--gold));
+}
+
+/* ── App entry transition (after onboarding) ── */
+.app-hidden { opacity: 0; }
+.app-visible {
+  opacity: 1;
+  animation: appEnter .6s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes appEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Jugadores: Grouped position selector ── */
+.pos-grouped-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pos-group-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pos-group-title {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: 'Rajdhani', sans-serif;
+}
+.pos-group-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.pos-detail-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  cursor: pointer;
+  transition: all .15s;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pos-detail-btn:hover {
+  border-color: var(--text2);
+  color: var(--text);
+}
+.pos-detail-btn.selected {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(240,192,64,.08);
+}
+.pos-detail-code {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ONBOARDING — FIFA "Press START" welcome screen
+   ───────────────────────────────────────────────────────────── */
+
+/* Root container — full screen overlay */
+.onb-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  transition: opacity .5s ease, transform .5s ease;
+}
+.onb-exit {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+}
+
+/* Stadium atmosphere background */
+.onb-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg,
+      #000510 0%,
+      #010b20 20%,
+      #020d28 50%,
+      #010b1e 80%,
+      #000510 100%
+    );
+}
+.onb-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%,   rgba(240,192,64,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 20% 100%, rgba(0,212,255,0.06)  0%, transparent 45%),
+    radial-gradient(ellipse at 80% 100%, rgba(16,185,129,0.05) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 110%, rgba(240,192,64,0.08) 0%, transparent 40%);
+  animation: onbAtmosphere 6s ease infinite alternate;
+}
+@keyframes onbAtmosphere {
+  from { opacity: 0.7; }
+  to   { opacity: 1; }
+}
+
+/* CRT scanlines overlay */
+.onb-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.008) 2px,
+    rgba(255,255,255,0.008) 4px
+  );
+  pointer-events: none;
+}
+
+/* Corner bracket accents — FIFA menu corners */
+.onb-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(240,192,64,0.5);
+  border-style: solid;
+  pointer-events: none;
+  animation: onbCornerPulse 3s ease infinite alternate;
+}
+@keyframes onbCornerPulse {
+  from { border-color: rgba(240,192,64,0.3); }
+  to   { border-color: rgba(240,192,64,0.7); }
+}
+.onb-corner-tl { top: 16px; left: 16px; border-width: 2px 0 0 2px; }
+.onb-corner-tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; }
+.onb-corner-bl { bottom: 16px; left: 16px; border-width: 0 0 2px 2px; }
+.onb-corner-br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; }
+
+/* ── INTRO PHASE ── */
+.onb-intro {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 24px;
+  animation: onbIntroIn .8s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes onbIntroIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.onb-intro-tap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  cursor: pointer;
+}
+
+.onb-season-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(240,192,64,0.35);
+  border-radius: 20px;
+  padding: 4px 14px;
+  margin-bottom: 28px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-family: 'Rajdhani', sans-serif;
+  position: relative;
+  z-index: 1;
+  animation: onbBadgeIn .6s .2s both;
+}
+.onb-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: blink-live 1.8s ease infinite;
+  flex-shrink: 0;
+}
+@keyframes onbBadgeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.onb-logo-wrap {
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+  animation: onbLogoIn .7s .1s both;
+}
+@keyframes onbLogoIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.onb-logo-title {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 88px;
+  font-weight: 400;
+  line-height: 0.85;
+  letter-spacing: 12px;
+  background: linear-gradient(180deg, var(--gold3) 0%, var(--gold) 40%, var(--gold2) 75%, #8a6000 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 24px rgba(240,192,64,0.55));
+  text-transform: uppercase;
+}
+.onb-logo-subtitle {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: 10px;
+  color: rgba(255,255,255,0.85);
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255,255,255,0.2);
+  line-height: 1.1;
+}
+.onb-logo-league {
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: var(--text2);
+  text-transform: uppercase;
+  margin-top: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+}
+
+.onb-intro-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 24px;
+  width: 200px;
+  position: relative;
+  z-index: 1;
+  animation: onbDividerIn .5s .4s both;
+}
+@keyframes onbDividerIn {
+  from { opacity: 0; width: 0; }
+  to   { opacity: 1; width: 200px; }
+}
+.onb-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.onb-divider-diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px var(--gold);
+  flex-shrink: 0;
+}
+
+.onb-press-start {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(240,192,64,0.6);
+  position: relative;
+  z-index: 1;
+  animation: onbPressIn .4s .6s both;
+}
+@keyframes onbPressIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.onb-press-blink {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text3);
+  text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  margin-top: 10px;
+  position: relative;
+  z-index: 1;
+  animation: blink-live 1.5s ease infinite, onbPressIn .4s .9s both;
+}
+
+/* ── FORM PHASE ── */
+.onb-form-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 24px 20px;
+  overflow-y: auto;
+  max-height: 100dvh;
+}
+.onb-form-enter {
+  animation: onbFormSlideIn .5s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes onbFormSlideIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.onb-form-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.onb-form-title {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 7px;
+  background: linear-gradient(180deg, var(--gold3) 0%, var(--gold) 50%, var(--gold2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 12px rgba(240,192,64,0.4));
+  line-height: 1;
+}
+.onb-form-sub {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text3);
+  text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  margin-top: 3px;
+}
+.onb-form-tagline {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px;
+  letter-spacing: 4px;
+  color: var(--text2);
+  margin-top: 8px;
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* Form fields */
+.onb-field-group {
+  margin-bottom: 18px;
+}
+.onb-field-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 7px;
+  font-family: 'Rajdhani', sans-serif;
+}
+.onb-field-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.onb-field-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(240,192,64,0.1), 0 0 16px rgba(240,192,64,0.08);
+}
+.onb-field-input::placeholder { color: var(--text3); }
+.onb-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--red2);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Position group picker — onboarding */
+.onb-pos-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.onb-pos-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.onb-pos-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text3);
+  font-family: 'Rajdhani', sans-serif;
+}
+.onb-pos-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.onb-pos-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  cursor: pointer;
+  transition: all .15s;
+  color: var(--text3);
+  min-width: 54px;
+}
+.onb-pos-btn:hover:not(:disabled) {
+  border-color: var(--text2);
+  color: var(--text2);
+  background: var(--card);
+}
+.onb-pos-btn.onb-pos-selected {
+  transform: scale(1.05);
+}
+.onb-pos-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.onb-pos-btn-code {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+.onb-pos-btn-name {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0.8;
+  max-width: 52px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Selected position preview badge */
+.onb-pos-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.onb-pos-preview-badge {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+.onb-pos-preview-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+/* CTA button */
+.onb-cta {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #f0c040 0%, #c9971f 50%, #f0c040 100%);
+  background-size: 200% 100%;
+  color: #1a1000;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  transition: all .2s;
+  box-shadow:
+    0 0 20px rgba(240,192,64,0.4),
+    0 4px 16px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  position: relative;
+  overflow: hidden;
+}
+.onb-cta::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left .5s;
+}
+.onb-cta:hover:not(:disabled)::before { left: 150%; }
+.onb-cta:hover:not(:disabled) {
+  background-position: 100% 0;
+  box-shadow: 0 0 32px rgba(240,192,64,0.65), 0 4px 20px rgba(0,0,0,0.5);
+  transform: translateY(-2px);
+}
+.onb-cta:active:not(:disabled) { transform: translateY(0); }
+.onb-cta:disabled { opacity: .65; cursor: not-allowed; }
+.onb-cta-loading { animation: pulse-gold 1.2s ease infinite; }
+.onb-cta-icon { font-size: 18px; }
+.onb-cta-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.onb-cta-dots span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  animation: blink-live .8s ease infinite;
+}
+.onb-cta-dots span:nth-child(2) { animation-delay: .2s; }
+.onb-cta-dots span:nth-child(3) { animation-delay: .4s; }
+
+/* Confirm success screen */
+.onb-confirm-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  animation: fadeInUp .4s ease;
+}
+.onb-confirm-ball {
+  font-size: 48px;
+  animation: sorteo-spin .8s ease-in-out;
+  filter: drop-shadow(0 0 16px rgba(240,192,64,0.7));
+}
+.onb-confirm-text {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+.onb-confirm-text strong { color: var(--gold3); }
+.onb-confirm-sub {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--text3);
+  text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  animation: blink-live 1s ease infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SELF-SERVICE — Mi tarjeta, botones VOY/PAGUÉ, squad list
+   ───────────────────────────────────────────────────────────── */
+
+/* Wrapper for the current player's card — gold glow to distinguish it */
+.mi-tarjeta-wrap {
+  background: linear-gradient(160deg, rgba(240,192,64,0.06) 0%, rgba(240,192,64,0.02) 100%);
+  border: 1px solid rgba(240,192,64,0.25);
+  border-radius: 16px;
+  padding: 16px 14px 14px;
+  margin-bottom: 4px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(240,192,64,0.08),
+    0 4px 32px rgba(240,192,64,0.08),
+    0 1px 0 rgba(255,255,255,0.04) inset;
+}
+.mi-tarjeta-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), var(--gold3), var(--gold), transparent);
+  opacity: .7;
+}
+
+/* ── VOY button ── */
+.btn-voy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 10px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: all .18s cubic-bezier(.22,1,.36,1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 80px;
+}
+.btn-voy:hover {
+  border-color: rgba(16,185,129,0.4);
+  background: rgba(16,185,129,0.06);
+}
+.btn-voy:active {
+  transform: scale(0.96);
+}
+.btn-voy.activo {
+  border-color: #10b981;
+  background: rgba(16,185,129,0.14);
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.15), 0 4px 20px rgba(16,185,129,0.2);
+}
+
+/* ── PAGUÉ button ── */
+.btn-pague {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 10px;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: all .18s cubic-bezier(.22,1,.36,1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 80px;
+}
+.btn-pague:hover:not(:disabled) {
+  border-color: rgba(240,192,64,0.4);
+  background: rgba(240,192,64,0.06);
+}
+.btn-pague:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.btn-pague.activo {
+  border-color: var(--gold);
+  background: rgba(240,192,64,0.14);
+  box-shadow: 0 0 0 3px rgba(240,192,64,0.15), 0 4px 20px rgba(240,192,64,0.2);
+}
+.btn-pague:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Shared inner elements for btn-voy / btn-pague */
+.btn-accion-check {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--text3);
+  transition: color .18s, transform .18s;
+}
+.btn-voy.activo .btn-accion-check {
+  color: #10b981;
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(16,185,129,0.6));
+}
+.btn-pague.activo .btn-accion-check {
+  color: var(--gold);
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(240,192,64,0.6));
+}
+
+.btn-accion-label {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  transition: color .18s;
+}
+.btn-voy.activo .btn-accion-label  { color: #10b981; }
+.btn-pague.activo .btn-accion-label { color: var(--gold); }
+
+/* ── Squad list — "TÚ" highlight ── */
+.squad-player-row.es-yo {
+  border-color: rgba(240,192,64,0.35);
+  background: rgba(240,192,64,0.04);
+}
+.squad-player-row.es-yo::before {
+  background: var(--gold);
+}
+
+/* Inline "TÚ" badge next to name */
+.yo-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: rgba(240,192,64,0.12);
+  border: 1px solid rgba(240,192,64,0.35);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: 'Rajdhani', sans-serif;
+  flex-shrink: 0;
+}
+
+/* ── Formato partido badge in Sorteo ── */
+.formato-partido {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--text2);
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 8px 24px;
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+.formato-partido::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: .5;
+}
+
+/* ── Field player — "yo" highlight on the pitch ── */
+.field-player-yo .field-player-yo-circle {
+  box-shadow:
+    0 3px 12px rgba(0,0,0,.7),
+    0 0 0 3px rgba(240,192,64,0.7),
+    0 0 16px rgba(240,192,64,0.5) !important;
+}
+.field-player-yo .field-player-yo-name {
+  color: var(--gold) !important;
+  font-weight: 700;
+}
+/* Gold pulse dot on the circle */
+.field-yo-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 1.5px solid var(--bg);
+  animation: blink-live 1.5s ease infinite;
+}
+
+/* Footer disclaimer */
+.onb-footer {
+  margin-top: 16px;
+  font-size: 9px;
+  color: var(--text3);
+  text-align: center;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+  padding: 0 4px;
+}
