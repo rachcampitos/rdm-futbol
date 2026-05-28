@@ -1,20 +1,24 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getInitials, POSICION_CONFIG } from '../utils';
 
 const TIPOS = [
-  { value: 'cancelacion_tardia', label: 'Cancelación tardía', emoji: '⏰' },
-  { value: 'no_show',            label: 'No se presentó',    emoji: '👻' },
-  { value: 'otro',               label: 'Otro',              emoji: '📋' },
+  { value: 'falta_injustificada', label: 'Falta injustificada', emoji: '🍺', esDoce: true },
+  { value: 'cancelacion_tardia',  label: 'Cancelación tardía',  emoji: '⏰' },
+  { value: 'no_show',             label: 'No se presentó',      emoji: '👻' },
+  { value: 'otro',                label: 'Otro',                emoji: '📋' },
 ];
 
 export default function Penaltis({ jugadores, penaltis }) {
   const [showForm, setShowForm] = useState(false);
   const [jugadorId, setJugadorId] = useState('');
-  const [tipo, setTipo] = useState('cancelacion_tardia');
-  const [monto, setMonto] = useState('');
+  const [tipo, setTipo] = useState('falta_injustificada');
+  const [monto, setMonto] = useState('1');
   const [descripcion, setDescripcion] = useState('');
+
+  const tipoActual = TIPOS.find(t => t.value === tipo);
 
   const activos = jugadores.filter(j => j.activo !== false);
 
@@ -32,9 +36,9 @@ export default function Penaltis({ jugadores, penaltis }) {
     });
     setShowForm(false);
     setJugadorId('');
-    setMonto('');
+    setMonto('1');
     setDescripcion('');
-    setTipo('cancelacion_tardia');
+    setTipo('falta_injustificada');
   }
 
   async function togglePagado(p) {
@@ -43,14 +47,19 @@ export default function Penaltis({ jugadores, penaltis }) {
 
   const pendientes = penaltis.filter(p => !p.pagado);
   const cobradas   = penaltis.filter(p => p.pagado);
-  const totalDeuda = pendientes.reduce((s, p) => s + (p.monto ?? 0), 0);
+  const totalDoces = pendientes.filter(p => TIPOS.find(t => t.value === p.tipo)?.esDoce).reduce((s, p) => s + (p.monto ?? 0), 0);
 
-  // Group by player
-  const porJugador = {};
+  // Group pending by player, preserving insertion order
+  const grupos = [];
+  const seenIds = {};
   pendientes.forEach(p => {
-    if (!porJugador[p.jugadorId]) porJugador[p.jugadorId] = { nombre: p.nombre, total: 0, count: 0 };
-    porJugador[p.jugadorId].total += p.monto ?? 0;
-    porJugador[p.jugadorId].count += 1;
+    if (!seenIds[p.jugadorId]) {
+      seenIds[p.jugadorId] = { nombre: p.nombre, total: 0, doces: 0, items: [] };
+      grupos.push(p.jugadorId);
+    }
+    const t = TIPOS.find(x => x.value === p.tipo);
+    seenIds[p.jugadorId].items.push(p);
+    if (t?.esDoce) seenIds[p.jugadorId].doces += p.monto ?? 0;
   });
 
   return (
@@ -64,39 +73,14 @@ export default function Penaltis({ jugadores, penaltis }) {
           <div className="stat-label">Pendientes</div>
         </div>
         <div className="stat-box">
-          <div className="stat-num">S/ {totalDeuda.toLocaleString()}</div>
-          <div className="stat-label">Total deuda</div>
+          <div className="stat-num" style={{ letterSpacing: 0 }}>🍺 ×{totalDoces}</div>
+          <div className="stat-label">Doces pendientes</div>
         </div>
       </div>
 
-      {/* Debt per player */}
-      {Object.keys(porJugador).length > 0 && (
-        <>
-          <div className="section-label">Deudores</div>
-          {Object.entries(porJugador).map(([id, info]) => {
-            const j = jugadores.find(x => x.id === id);
-            const cfg = POSICION_CONFIG[j?.posicion] ?? POSICION_CONFIG.defensa;
-            return (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 10, marginBottom: 7 }}>
-                <div className="player-avatar" style={{ borderColor: cfg.color, color: cfg.color }}>
-                  {getInitials(info.nombre)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{info.nombre}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text2)' }}>{info.count} penalti{info.count > 1 ? 's' : ''}</div>
-                </div>
-                <div style={{ fontFamily: 'Rajdhani', fontSize: 18, fontWeight: 700, color: 'var(--red2)' }}>
-                  S/ {info.total.toLocaleString()}
-                </div>
-              </div>
-            );
-          })}
-        </>
-      )}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div className="section-label" style={{ marginBottom: 0, marginTop: 0, border: 'none' }}>
-          Historial ({pendientes.length} pendientes)
+          {pendientes.length > 0 ? `Deudas (${pendientes.length})` : 'Sin deudas'}
         </div>
         <button className="btn btn-gold btn-sm" onClick={() => setShowForm(true)}>+ Penalti</button>
       </div>
@@ -108,18 +92,43 @@ export default function Penaltis({ jugadores, penaltis }) {
         </div>
       )}
 
-      {pendientes.map(p => <PenaltiCard key={p.id} p={p} onToggle={togglePagado} />)}
+      {/* Grouped pending penalties */}
+      {grupos.map(jugId => {
+        const info = seenIds[jugId];
+        const j = jugadores.find(x => x.id === jugId);
+        const cfg = POSICION_CONFIG[j?.posicion] ?? POSICION_CONFIG.defensa;
+        return (
+          <div key={jugId} style={{ marginBottom: 12 }}>
+            {/* Player header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, padding: '0 2px' }}>
+              <div className="player-avatar" style={{ width: 28, height: 28, minWidth: 28, fontSize: 11, borderColor: cfg.color, color: cfg.color }}>
+                {getInitials(info.nombre)}
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text1)', flex: 1 }}>{info.nombre}</div>
+              {info.doces > 0 && (
+                <div style={{ fontSize: 11, fontFamily: 'Rajdhani', fontWeight: 700, color: 'var(--red2)', letterSpacing: 0 }}>
+                  🍺 ×{info.doces}
+                </div>
+              )}
+            </div>
+            {/* Individual penalty cards indented */}
+            <div style={{ paddingLeft: 36 }}>
+              {info.items.map(p => <PenaltiCard key={p.id} p={p} onToggle={togglePagado} />)}
+            </div>
+          </div>
+        );
+      })}
 
       {cobradas.length > 0 && (
         <>
-          <div className="section-label">Cobradas ({cobradas.length})</div>
+          <div className="section-label">Pagadas ({cobradas.length})</div>
           {cobradas.map(p => <PenaltiCard key={p.id} p={p} onToggle={togglePagado} />)}
         </>
       )}
 
-      {showForm && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-          <div className="modal">
+      {showForm && createPortal(
+        <div className="overlay" style={{ alignItems: 'center', padding: '0 12px' }} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+          <div className="modal" style={{ borderRadius: 16, maxHeight: '92dvh', overflowY: 'auto' }}>
             <div className="modal-title">
               Nueva Penalti
               <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
@@ -146,7 +155,7 @@ export default function Penaltis({ jugadores, penaltis }) {
                   <button
                     key={t.value}
                     className={`pos-option ${tipo === t.value ? 'selected' : ''}`}
-                    onClick={() => setTipo(t.value)}
+                    onClick={() => { setTipo(t.value); setMonto(t.esDoce ? '1' : ''); }}
                     style={{ flex: 1, fontSize: 10 }}
                   >
                     {t.emoji}<br />{t.label}
@@ -156,14 +165,22 @@ export default function Penaltis({ jugadores, penaltis }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Monto (S/)</label>
+              <label className="form-label">
+                {tipoActual?.esDoce ? 'Cantidad de doces 🍺' : 'Monto (S/)'}
+              </label>
               <input
                 className="form-input"
                 type="number"
                 value={monto}
                 onChange={e => setMonto(e.target.value)}
-                placeholder="Ej: 20"
+                placeholder={tipoActual?.esDoce ? 'Ej: 1' : 'Ej: 20'}
+                min="1"
               />
+              {tipoActual?.esDoce && (
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 4, fontFamily: 'Rajdhani' }}>
+                  Falta injustificada = 1 doce de cerveza para la parrilla
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -185,14 +202,16 @@ export default function Penaltis({ jugadores, penaltis }) {
               Registrar penalti
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
 
 function PenaltiCard({ p, onToggle }) {
-  const tipoInfo = TIPOS.find(t => t.value === p.tipo) ?? TIPOS[2];
+  const tipoInfo = TIPOS.find(t => t.value === p.tipo) ?? TIPOS[TIPOS.length - 1];
+  const esDoce = tipoInfo.esDoce;
   const fecha = p.createdAt?.toDate?.()
     ? p.createdAt.toDate().toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })
     : '';
@@ -206,13 +225,19 @@ function PenaltiCard({ p, onToggle }) {
         {p.descripcion && <div className="penalty-meta" style={{ fontStyle: 'italic' }}>{p.descripcion}</div>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-        <div className="penalty-amount">S/ {(p.monto ?? 0).toLocaleString()}</div>
+        {esDoce ? (
+          <div className="penalty-amount" style={{ letterSpacing: 0 }}>
+            🍺 ×{p.monto ?? 1}
+          </div>
+        ) : (
+          <div className="penalty-amount">S/ {(p.monto ?? 0).toLocaleString()}</div>
+        )}
         <button
           className={`btn btn-sm ${p.pagado ? 'btn-outline' : 'btn-gold'}`}
           onClick={() => onToggle(p)}
           style={{ fontSize: 10, padding: '4px 10px' }}
         >
-          {p.pagado ? 'Cobrado' : 'Cobrar'}
+          {p.pagado ? (esDoce ? 'Trajo' : 'Pagado') : 'Pagó'}
         </button>
       </div>
     </div>

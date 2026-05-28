@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getWeekId, getShortName, getInitials, distribuirEquipos, calcularPosicionesCancha } from '../utils';
+import {
+  getWeekId, getShortName, getInitials, distribuirEquipos,
+  FORMACIONES, getFormacionDefault, aplicarFormacion,
+  getFormatosValidos, getPosicionLabel, getPosicionConfig,
+} from '../utils';
 
 // Derive the match format label from team sizes: "4 VS 4", "10 VS 10", etc.
 function getFormatoPartido(sizeA, sizeB) {
@@ -10,8 +14,12 @@ function getFormatoPartido(sizeA, sizeB) {
 }
 
 export default function Sorteo({ jugadores, partido, jugadorActual }) {
-  const [animating, setAnimating]     = useState(false);
+  const [animating, setAnimating]       = useState(false);
   const [justRevealed, setJustRevealed] = useState(false);
+  const [formacionA, setFormacionA]     = useState(null);
+  const [formacionB, setFormacionB]     = useState(null);
+  const [formatoSel, setFormatoSel]     = useState(null);
+  const [sorteoView, setSorteoView]     = useState('cancha'); // 'cancha' | 'equipos'
 
   const confirmados = (partido?.convocados ?? []).filter(c => c.estado === 'confirmado');
   const jugadoresConfirmados = confirmados.map(c =>
@@ -24,21 +32,58 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
 
   const formato = sorteoHecho ? getFormatoPartido(equipoA.length, equipoB.length) : null;
 
+  /* Formato activo: selección local > guardada en Firestore > máximo posible */
+  const formatoActivo = formatoSel
+    ?? partido?.formatoJugadores
+    ?? (jugadoresConfirmados.length >= 4 ? Math.floor(jugadoresConfirmados.length / 2) : null);
+
+  /* Suplentes resueltos desde Firestore IDs */
+  const suplentesList = (partido?.suplentes ?? [])
+    .map(id => jugadores.find(j => j.id === id))
+    .filter(Boolean);
+
+  /* Formaciones activas — preferencia local > guardada en Firestore > default por nJugadores */
+  const fA = formacionA ?? partido?.formacionA ?? getFormacionDefault(equipoA.length);
+  const fB = formacionB ?? partido?.formacionB ?? getFormacionDefault(equipoB.length);
+
   async function hacerSorteo() {
     if (jugadoresConfirmados.length < 2) return;
     setAnimating(true);
     setJustRevealed(false);
 
     setTimeout(async () => {
-      const { equipoA: a, equipoB: b } = distribuirEquipos(jugadoresConfirmados);
+      const { equipoA: a, equipoB: b, suplentes: s } = distribuirEquipos(jugadoresConfirmados, formatoActivo);
+      const defA = getFormacionDefault(a.length);
+      const defB = getFormacionDefault(b.length);
       await updateDoc(doc(db, 'partidos', getWeekId()), {
         equipoA: a.map(j => j.id),
         equipoB: b.map(j => j.id),
+        suplentes: s.map(j => j.id),
         sorteoRealizado: true,
+        formatoJugadores: formatoActivo,
+        formacionA: defA,
+        formacionB: defB,
+        sorteadoPor: jugadorActual?.nombre ?? '',
       });
+      setFormacionA(null);
+      setFormacionB(null);
       setAnimating(false);
       setJustRevealed(true);
+      setSorteoView('cancha');
     }, 2000);
+  }
+
+  async function cambiarFormacion(equipo, nueva) {
+    if (equipo === 'A') setFormacionA(nueva);
+    else setFormacionB(nueva);
+
+    /* Persistir en Firestore */
+    const campo = equipo === 'A' ? 'formacionA' : 'formacionB';
+    try {
+      await updateDoc(doc(db, 'partidos', getWeekId()), { [campo]: nueva });
+    } catch {
+      /* si no existe el doc todavía, ignorar — el próximo sorteo lo crea */
+    }
   }
 
   return (
@@ -50,7 +95,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
 
       {/* Info card */}
       <div className="week-card" style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{
               fontSize: 10, color: 'var(--text3)', letterSpacing: 1.5,
@@ -87,6 +132,45 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
             </div>
           )}
         </div>
+
+        {/* Format selector */}
+        {jugadoresConfirmados.length >= 4 && (() => {
+          const opciones = getFormatosValidos(jugadoresConfirmados.length);
+          if (opciones.length <= 1) return null;
+          return (
+            <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: 2, color: 'var(--text3)',
+                textTransform: 'uppercase', fontFamily: 'Rajdhani', marginBottom: 8,
+              }}>
+                Formato del partido
+              </div>
+              <div className="formato-pills">
+                {opciones.map(n => {
+                  const nSup = jugadoresConfirmados.length - n * 2;
+                  return (
+                    <button
+                      key={n}
+                      className={`formato-pill${formatoActivo === n ? ' active' : ''}`}
+                      onClick={() => setFormatoSel(n)}
+                    >
+                      <span>{n}v{n}</span>
+                      {nSup > 0 && <span className="formato-pill-sub">+{nSup} sup</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{
+                fontSize: 9, color: 'var(--text3)', marginTop: 8,
+                fontFamily: 'Rajdhani', letterSpacing: 0.5, lineHeight: 1.4,
+              }}>
+                {sorteoHecho
+                  ? '↑ Cambia el formato y presiona "Nuevo sorteo" para aplicarlo'
+                  : '↑ Elige el formato antes de sortear — los sobrantes serán suplentes'}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Empty states */}
@@ -106,8 +190,16 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
       {/* Draw animation */}
       {animating && (
         <div className="sorteo-draw-screen fade-in">
-          <div className="sorteo-ball sorteo-spinning">⚽</div>
-          <div className="sorteo-label">Sorteando equipos</div>
+          {/* Shadow beneath the ball */}
+          <div className="sorteo-shadow-wrap">
+            <div className="sorteo-ball-shadow" />
+          </div>
+          {/* Bouncing ball */}
+          <div className="sorteo-ball-wrap">
+            <div className="sorteo-ball-bounce">⚽</div>
+          </div>
+          {/* Flashing gold title */}
+          <div className="sorteo-label sorteo-label-flash">SORTEANDO...</div>
           <div className="sorteo-dots">
             <div className="sorteo-dot" />
             <div className="sorteo-dot" />
@@ -122,10 +214,19 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
 
           {/* Formato del partido — adaptive badge */}
           {formato && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <div className="formato-partido">
                 PARTIDO <span style={{ color: 'var(--gold)' }}>{formato}</span>
               </div>
+              {partido?.sorteadoPor && (
+                <div style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                  color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif',
+                  textTransform: 'uppercase',
+                }}>
+                  Sorteo por <span style={{ color: 'var(--text2)' }}>{partido.sorteadoPor}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -164,33 +265,87 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
             </div>
           </div>
 
-          {/* Tactical pitch */}
-          <CanchaView
-            equipoA={equipoA}
-            equipoB={equipoB}
-            justRevealed={justRevealed}
-            jugadorActualId={jugadorActual?.id}
-          />
-
-          {/* Team lists */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-            <TeamList
-              titulo="Equipo Azul"
-              jugadores={equipoA}
-              color="#90caf9"
-              bg="rgba(21,101,192,.12)"
-              borderColor="rgba(21,101,192,.4)"
-              jugadorActualId={jugadorActual?.id}
-            />
-            <TeamList
-              titulo="Equipo Rojo"
-              jugadores={equipoB}
-              color="#fca5a5"
-              bg="rgba(185,28,28,.12)"
-              borderColor="rgba(185,28,28,.4)"
-              jugadorActualId={jugadorActual?.id}
-            />
+              {/* View tabs */}
+          <div className="sorteo-view-tabs">
+            <button
+              className={`sorteo-view-tab${sorteoView === 'cancha' ? ' active' : ''}`}
+              onClick={() => setSorteoView('cancha')}
+            >
+              ⚽ Cancha
+            </button>
+            <button
+              className={`sorteo-view-tab${sorteoView === 'equipos' ? ' active' : ''}`}
+              onClick={() => setSorteoView('equipos')}
+            >
+              👥 Equipos
+            </button>
           </div>
+
+          {/* CANCHA view */}
+          {sorteoView === 'cancha' && (
+            <>
+              <FormacionSelector
+                equipoA={equipoA}
+                equipoB={equipoB}
+                formacionA={fA}
+                formacionB={fB}
+                onChangeA={f => cambiarFormacion('A', f)}
+                onChangeB={f => cambiarFormacion('B', f)}
+              />
+              <CanchaView
+                equipoA={equipoA}
+                equipoB={equipoB}
+                formacionA={fA}
+                formacionB={fB}
+                justRevealed={justRevealed}
+                jugadorActualId={jugadorActual?.id}
+              />
+            </>
+          )}
+
+          {/* EQUIPOS view */}
+          {sorteoView === 'equipos' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                <TeamList
+                  titulo="Equipo Azul"
+                  jugadores={equipoA}
+                  color="#90caf9"
+                  bg="rgba(21,101,192,.12)"
+                  borderColor="rgba(21,101,192,.4)"
+                  jugadorActualId={jugadorActual?.id}
+                />
+                <TeamList
+                  titulo="Equipo Rojo"
+                  jugadores={equipoB}
+                  color="#fca5a5"
+                  bg="rgba(185,28,28,.12)"
+                  borderColor="rgba(185,28,28,.4)"
+                  jugadorActualId={jugadorActual?.id}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Suplentes — visible en ambas vistas */}
+          {suplentesList.length > 0 && (
+            <div className="suplentes-panel">
+              <div className="suplentes-header">Suplentes</div>
+              {suplentesList.map((j, i) => {
+                const cfg = getPosicionConfig(j.posicion);
+                return (
+                  <div key={j.id ?? i} className="suplente-row">
+                    <span className="suplente-num">{i + 1}</span>
+                    <span style={{ flex: 1 }}>{j.nombre}</span>
+                    {j.capitan && <span className="capitan-badge">C</span>}
+                    <span className="suplente-pos-badge" style={{ color: cfg.color, background: cfg.bg }}>
+                      {getPosicionLabel(j.posicion)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -199,9 +354,74 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
   );
 }
 
-function CanchaView({ equipoA, equipoB, justRevealed, jugadorActualId }) {
-  const posA = calcularPosicionesCancha(equipoA, true);
-  const posB = calcularPosicionesCancha(equipoB, false);
+/* ─────────────────────────────────────────────────────────────
+   FormacionSelector — WE/PES táctica picker
+   Filtrado por nJugadores: solo muestra formaciones compatibles
+   ───────────────────────────────────────────────────────────── */
+function FormacionSelector({ equipoA, equipoB, formacionA, formacionB, onChangeA, onChangeB }) {
+  /* Filtra formaciones cuyo total de slots coincide con el equipo
+     o está a 1 de diferencia (tolerante) */
+  const formacionesPara = (nJugadores) =>
+    Object.keys(FORMACIONES).filter(key => {
+      const total = FORMACIONES[key].reduce((s, l) => s + l.n, 0);
+      return Math.abs(total - nJugadores) <= 1;
+    });
+
+  const opcionesA = formacionesPara(equipoA.length);
+  const opcionesB = formacionesPara(equipoB.length);
+
+  /* Si solo hay una opción no mostramos el selector */
+  if (opcionesA.length <= 1 && opcionesB.length <= 1) return null;
+
+  return (
+    <div className="formacion-selector-wrap">
+      {/* Equipo Azul */}
+      <div className="formacion-team-col formacion-team-a">
+        <div className="formacion-team-label formacion-label-a">Azul</div>
+        <div className="formacion-btn-row">
+          {opcionesA.map(f => (
+            <button
+              key={f}
+              className={`formacion-btn formacion-btn-a${formacionA === f ? ' formacion-btn-active-a' : ''}`}
+              onClick={() => onChangeA(f)}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="formacion-divider">
+        <div className="formacion-divider-icon">⚽</div>
+      </div>
+
+      {/* Equipo Rojo */}
+      <div className="formacion-team-col formacion-team-b">
+        <div className="formacion-team-label formacion-label-b">Rojo</div>
+        <div className="formacion-btn-row formacion-btn-row-right">
+          {opcionesB.map(f => (
+            <button
+              key={f}
+              className={`formacion-btn formacion-btn-b${formacionB === f ? ' formacion-btn-active-b' : ''}`}
+              onClick={() => onChangeB(f)}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CanchaView — ahora usa aplicarFormacion en lugar de
+   calcularPosicionesCancha
+   ───────────────────────────────────────────────────────────── */
+function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, jugadorActualId }) {
+  const posA = aplicarFormacion(equipoA, formacionA, true);
+  const posB = aplicarFormacion(equipoB, formacionB, false);
 
   return (
     <div className="field-wrap">
@@ -214,19 +434,19 @@ function CanchaView({ equipoA, equipoB, justRevealed, jugadorActualId }) {
         <circle cx="50" cy="84" r="12" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="0.5"/>
         <circle cx="50" cy="84" r="0.9" fill="rgba(255,255,255,0.85)"/>
         <rect x="20" y="3" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
-        <rect x="34" y="3" width="32" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <rect x="40" y="0.8" width="20" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
+        <rect x="36.5" y="3" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <rect x="45" y="0.8" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
         <circle cx="50" cy="19" r="0.7" fill="rgba(255,255,255,0.7)"/>
-        <path d="M 36 27 A 12 12 0 0 1 64 27" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 40,27 A 13 13 0 0 0 60,27" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
         <rect x="20" y="141" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
-        <rect x="34" y="156" width="32" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <rect x="40" y="163.2" width="20" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
+        <rect x="36.5" y="156" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <rect x="45" y="163.2" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
         <circle cx="50" cy="149" r="0.7" fill="rgba(255,255,255,0.7)"/>
-        <path d="M 36 141 A 12 12 0 0 0 64 141" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 3,3 Q 5.5,3 5.5,5.5"    fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 97,3 Q 94.5,3 94.5,5.5"  fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 3,165 Q 5.5,165 5.5,162.5" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 97,165 Q 94.5,165 94.5,162.5" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 40,141 A 13 13 0 0 1 60,141" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 7,3 A 4 4 0 0 1 3,7"       fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 93,3 A 4 4 0 0 0 97,7"     fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 3,161 A 4 4 0 0 1 7,165"   fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+        <path d="M 93,165 A 4 4 0 0 1 97,161" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
         <defs>
           <radialGradient id="topLight" cx="50%" cy="0%" r="40%">
             <stop offset="0%" stopColor="rgba(255,255,220,0.09)"/>
@@ -243,7 +463,7 @@ function CanchaView({ equipoA, equipoB, justRevealed, jugadorActualId }) {
 
       {posA.map((p, i) => (
         <PlayerToken
-          key={`a-${i}`}
+          key={`a-${p.id ?? i}`}
           player={p}
           team="a"
           delay={justRevealed ? i * 80 : 0}
@@ -252,7 +472,7 @@ function CanchaView({ equipoA, equipoB, justRevealed, jugadorActualId }) {
       ))}
       {posB.map((p, i) => (
         <PlayerToken
-          key={`b-${i}`}
+          key={`b-${p.id ?? i}`}
           player={p}
           team="b"
           delay={justRevealed ? (posA.length + i) * 80 : 0}
@@ -266,7 +486,7 @@ function CanchaView({ equipoA, equipoB, justRevealed, jugadorActualId }) {
 function PlayerToken({ player, team, delay, esYo }) {
   return (
     <div
-      className={`field-player card-reveal ${esYo ? 'field-player-yo' : ''}`}
+      className={`field-player field-player-animated card-reveal ${esYo ? 'field-player-yo' : ''}`}
       style={{
         left: `${player.x}%`,
         top: `${player.y}%`,
@@ -276,6 +496,7 @@ function PlayerToken({ player, team, delay, esYo }) {
       <div className={`field-player-circle team-${team}-circle ${esYo ? 'field-player-yo-circle' : ''}`}>
         {getInitials(player.nombre)}
         {esYo && <span className="field-yo-dot" />}
+        {player.capitan && <span className="field-capitan-c">C</span>}
       </div>
       <div className={`field-player-name ${esYo ? 'field-player-yo-name' : ''}`}>
         {getShortName(player.nombre)}
@@ -328,6 +549,7 @@ function TeamList({ titulo, jugadores, color, bg, borderColor, jugadorActualId }
               {i + 1}
             </span>
             <span style={{ flex: 1 }}>{j.nombre}</span>
+            {j.capitan && <span className="capitan-badge">C</span>}
             {esYo && (
               <span style={{
                 fontSize: 8, fontWeight: 700, letterSpacing: 1,

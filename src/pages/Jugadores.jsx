@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getInitials, POSICION_GRUPOS, POSICION_DETALLADA, getPosicionConfig, getCategoriaBase } from '../utils';
@@ -141,9 +142,9 @@ export default function Jugadores({ jugadores }) {
       )}
 
       {/* Add / Edit modal */}
-      {showForm && (
-        <div className="overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-          <div className="modal">
+      {showForm && createPortal(
+        <div className="overlay" style={{ alignItems: 'center', padding: '0 12px' }} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
+          <div className="modal" style={{ borderRadius: 16, maxHeight: '92dvh', overflowY: 'auto' }}>
             <div className="modal-title">
               {editId ? 'Editar Jugador' : 'Nuevo Jugador'}
               <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
@@ -207,7 +208,8 @@ export default function Jugadores({ jugadores }) {
               {editId ? 'Guardar cambios' : 'Agregar jugador'}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

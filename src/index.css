@@ -167,6 +167,34 @@ body::before {
   box-shadow: 0 0 6px var(--gold);
 }
 
+/* ── Header profile button — top-right corner ── */
+.header-profile-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(240,192,64,0.3);
+  background: rgba(240,192,64,0.08);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .2s, background .2s, transform .15s;
+  z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+}
+.header-profile-btn:hover {
+  border-color: rgba(240,192,64,0.7);
+  background: rgba(240,192,64,0.16);
+  transform: scale(1.08);
+}
+.header-profile-btn:active {
+  transform: scale(0.94);
+}
+
 /* ── Nav — FIFA bottom tab bar ── */
 .nav {
   display: flex;
@@ -468,8 +496,8 @@ body::before {
   position: absolute; inset: 0;
   background: repeating-linear-gradient(
     180deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.04) 4.5%,
+    rgba(255,255,255,0.07) 0%,
+    rgba(255,255,255,0.07) 4.5%,
     transparent 4.5%,
     transparent 9%
   );
@@ -574,49 +602,76 @@ body::before {
   transform: translateY(-3px) scale(1.02);
 }
 
-/* Rarity tiers */
+/* Rarity tiers — vibrant gradients + shimmer */
 .fut-card-bronze {
-  background: linear-gradient(160deg, #5c3a1e 0%, #8b5e3c 40%, #6b4423 70%, #4a2e14 100%);
-  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 0 8px rgba(160,100,60,0.3);
-  border: 1px solid rgba(160,100,60,0.4);
+  background: linear-gradient(145deg,
+    #3d2010 0%, #7a4020 22%, #b06030 44%, #c87040 54%, #b06030 66%, #7a4020 82%, #3d2010 100%
+  );
+  box-shadow: 0 5px 22px rgba(0,0,0,.75), 0 0 12px rgba(176,96,48,0.38);
+  border: 1px solid rgba(176,96,48,0.55);
 }
+.fut-card-bronze::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 18%, rgba(220,160,100,0.14) 42%, rgba(255,200,140,0.24) 52%, rgba(220,160,100,0.14) 62%, transparent 84%
+  );
+  pointer-events: none;
+}
+
 .fut-card-silver {
-  background: linear-gradient(160deg, #2a2a3a 0%, #4a4a6a 40%, #3a3a50 70%, #1e1e2e 100%);
-  box-shadow: 0 4px 20px rgba(0,0,0,.6), 0 0 8px rgba(150,150,200,0.25);
-  border: 1px solid rgba(150,150,200,0.3);
+  background: linear-gradient(145deg,
+    #181e30 0%, #2c3a5c 22%, #4a6090 44%, #608ab8 54%, #4a6090 66%, #2c3a5c 82%, #181e30 100%
+  );
+  box-shadow: 0 5px 22px rgba(0,0,0,.75), 0 0 14px rgba(80,110,180,0.38);
+  border: 1px solid rgba(100,145,210,0.5);
 }
+.fut-card-silver::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 18%, rgba(160,200,255,0.12) 42%, rgba(200,230,255,0.22) 52%, rgba(160,200,255,0.12) 62%, transparent 84%
+  );
+  pointer-events: none;
+}
+
 .fut-card-gold {
-  background: linear-gradient(160deg, #2a1f00 0%, #5a4010 35%, #7a5818 50%, #5a4010 65%, #2a1f00 100%);
-  box-shadow: 0 4px 24px rgba(0,0,0,.7), 0 0 16px rgba(240,192,64,0.3);
-  border: 1px solid rgba(240,192,64,0.4);
+  background: linear-gradient(145deg,
+    #2c1900 0%, #7a5000 20%, #c88800 40%, #f0c040 52%, #c88800 64%, #7a5000 82%, #2c1900 100%
+  );
+  box-shadow: 0 6px 28px rgba(0,0,0,.85), 0 0 24px rgba(240,192,64,0.5);
+  border: 1px solid rgba(240,192,64,0.65);
 }
 .fut-card-gold::before {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(135deg,
-    transparent 0%, rgba(240,192,64,0.08) 30%,
-    rgba(255,220,100,0.12) 50%, rgba(240,192,64,0.08) 70%, transparent 100%
+  background: linear-gradient(115deg,
+    transparent 14%, rgba(255,245,180,0.12) 36%, rgba(255,255,220,0.30) 50%, rgba(255,245,180,0.12) 64%, transparent 84%
   );
   pointer-events: none;
 }
+
 .fut-card-elite {
-  background: linear-gradient(160deg, #0a0020 0%, #1a0050 30%, #2a0080 50%, #1a0050 70%, #0a0020 100%);
-  box-shadow: 0 4px 24px rgba(0,0,0,.8), 0 0 20px rgba(120,60,255,0.35);
-  border: 1px solid rgba(140,80,255,0.5);
+  background: linear-gradient(145deg,
+    #060018 0%, #180058 18%, #3018b0 36%, #5838e8 50%, #0060c8 64%, #180058 82%, #060018 100%
+  );
+  box-shadow: 0 6px 30px rgba(0,0,0,.92), 0 0 28px rgba(100,60,255,0.58);
+  border: 1px solid rgba(130,90,255,0.72);
 }
 .fut-card-elite::before {
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 30% 30%, rgba(140,80,255,0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at 70% 70%, rgba(0,180,255,0.1) 0%, transparent 60%);
+    radial-gradient(ellipse at 28% 28%, rgba(140,80,255,0.2) 0%, transparent 55%),
+    radial-gradient(ellipse at 72% 72%, rgba(0,180,255,0.14) 0%, transparent 55%),
+    linear-gradient(115deg, transparent 18%, rgba(200,180,255,0.14) 42%, rgba(220,200,255,0.24) 52%, rgba(200,180,255,0.14) 62%, transparent 84%);
   pointer-events: none;
   animation: holographic 4s ease infinite;
 }
 
 @keyframes holographic {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50%       { opacity: 0.62; }
 }
 
 /* FUT Card inner layout */
@@ -677,6 +732,53 @@ body::before {
   color: rgba(255,255,255,0.9);
   box-shadow: 0 2px 12px rgba(0,0,0,0.5);
 }
+
+/* Tier-specific avatar glow */
+.fut-card-gold .fut-card-avatar {
+  border-color: rgba(240,192,64,0.88);
+  box-shadow: 0 0 22px rgba(240,192,64,0.55), 0 0 6px rgba(240,192,64,0.28), inset 0 0 10px rgba(0,0,0,0.55);
+  background: radial-gradient(circle at 38% 32%, rgba(240,192,64,0.18), rgba(0,0,0,0.7));
+}
+.fut-card-silver .fut-card-avatar {
+  border-color: rgba(100,148,215,0.85);
+  box-shadow: 0 0 18px rgba(100,148,215,0.44), inset 0 0 10px rgba(0,0,0,0.55);
+  background: radial-gradient(circle at 38% 32%, rgba(100,148,215,0.16), rgba(0,0,0,0.7));
+}
+.fut-card-bronze .fut-card-avatar {
+  border-color: rgba(176,96,48,0.85);
+  box-shadow: 0 0 15px rgba(176,96,48,0.4), inset 0 0 10px rgba(0,0,0,0.55);
+  background: radial-gradient(circle at 38% 32%, rgba(176,96,48,0.16), rgba(0,0,0,0.7));
+}
+.fut-card-elite .fut-card-avatar {
+  border-color: rgba(140,90,255,0.92);
+  box-shadow: 0 0 26px rgba(120,60,255,0.65), 0 0 8px rgba(0,200,255,0.28), inset 0 0 10px rgba(0,0,0,0.5);
+  background: radial-gradient(circle at 38% 32%, rgba(110,70,220,0.22), rgba(0,0,0,0.65));
+}
+
+/* Tier-specific text color */
+.fut-card-gold .fut-card-overall, .fut-card-gold .fut-card-pos,
+.fut-card-gold .fut-card-name, .fut-card-gold .fut-card-stat-num {
+  color: rgba(255,242,160,0.97);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.92), 0 0 10px rgba(200,148,0,0.3);
+}
+.fut-card-gold .fut-card-stat-label { color: rgba(240,192,64,0.72); }
+.fut-card-gold .fut-card-divider    { background: rgba(240,192,64,0.32); }
+
+.fut-card-silver .fut-card-overall, .fut-card-silver .fut-card-pos,
+.fut-card-silver .fut-card-name, .fut-card-silver .fut-card-stat-num {
+  color: rgba(212,232,255,0.97);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.92);
+}
+.fut-card-silver .fut-card-stat-label { color: rgba(100,148,215,0.75); }
+.fut-card-silver .fut-card-divider    { background: rgba(100,148,215,0.28); }
+
+.fut-card-elite .fut-card-overall, .fut-card-elite .fut-card-pos,
+.fut-card-elite .fut-card-name, .fut-card-elite .fut-card-stat-num {
+  color: rgba(232,218,255,0.97);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(140,80,255,0.38);
+}
+.fut-card-elite .fut-card-stat-label { color: rgba(140,90,255,0.78); }
+.fut-card-elite .fut-card-divider    { background: rgba(140,90,255,0.38); }
 
 .fut-card-name {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
@@ -800,6 +902,14 @@ body::before {
 }
 .card-reveal { animation: card-reveal .5s cubic-bezier(.34,1.56,.64,1) forwards; }
 
+/* Field player variant — preserves translate(-50%,-50%) centering through the animation */
+@keyframes field-player-reveal {
+  0%   { transform: translate(-50%, -50%) scale(0.8) rotateY(90deg); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) scale(1.05) rotateY(-5deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1) rotateY(0deg); opacity: 1; }
+}
+.field-player.card-reveal { animation-name: field-player-reveal; }
+
 @keyframes sorteo-spin {
   0%   { transform: rotate(0deg) scale(1); }
   25%  { transform: rotate(180deg) scale(1.2); }
@@ -818,22 +928,125 @@ body::before {
 /* ── Sorteo screen — epic draw ── */
 .sorteo-draw-screen {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 40px 20px;
-  gap: 16px;
+  padding: 48px 20px 40px;
+  gap: 0;
+  position: relative;
 }
 
-.sorteo-ball {
-  font-size: 56px;
+/* Ball bounce wrapper — provides the vertical space */
+.sorteo-ball-wrap {
+  position: relative;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+/* The ball itself */
+.sorteo-ball-bounce {
+  font-size: 62px;
   line-height: 1;
-  filter: drop-shadow(0 0 16px rgba(240,192,64,0.6));
+  display: block;
+  filter:
+    drop-shadow(0 0 18px rgba(240,192,64,0.55))
+    drop-shadow(0 0 40px rgba(240,192,64,0.25));
+  animation: ball-bounce 0.72s linear infinite;
+  transform-origin: center bottom;
 }
 
+/* Shadow container — stays at bottom of ball-wrap */
+.sorteo-shadow-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.sorteo-ball-shadow {
+  width: 52px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  filter: blur(6px);
+  animation: ball-shadow 0.72s linear infinite;
+  transform-origin: center center;
+}
+
+/* Bounce physics keyframes — gravity-correct easing per segment */
+@keyframes ball-bounce {
+  /* Ground impact — squash flat */
+  0% {
+    transform: translateY(0) scaleY(0.6) scaleX(1.35);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  /* Launch — brief vertical stretch (snappy, quick) */
+  7% {
+    transform: translateY(-10px) scaleY(1.22) scaleX(0.86);
+    animation-timing-function: ease-out;
+  }
+  /* Quickly back to round as it rises — stretch is gone by 20% */
+  20% {
+    transform: translateY(-44px) scaleY(1) scaleX(1);
+    animation-timing-function: ease-out;
+  }
+  /* Apex — round, decelerating to stop */
+  50% {
+    transform: translateY(-76px) scaleY(1) scaleX(1);
+    animation-timing-function: ease-in;
+  }
+  /* Still round on the way down — accelerating */
+  80% {
+    transform: translateY(-44px) scaleY(1) scaleX(1);
+    animation-timing-function: ease-in;
+  }
+  /* Brief pre-impact stretch */
+  93% {
+    transform: translateY(-10px) scaleY(1.1) scaleX(0.94);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  /* Impact again */
+  100% {
+    transform: translateY(0) scaleY(0.6) scaleX(1.35);
+  }
+}
+
+@keyframes ball-shadow {
+  0%, 100% { transform: scaleX(1.2);  opacity: 0.55; }
+  50%       { transform: scaleX(0.3);  opacity: 0.06; }
+  93%       { transform: scaleX(0.6);  opacity: 0.25; }
+}
+
+/* "SORTEANDO..." label — gold flash */
 .sorteo-label {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
-  font-size: 20px; font-weight: 400;
-  color: var(--gold); letter-spacing: 4px;
+  font-size: 22px; font-weight: 400;
+  color: var(--gold); letter-spacing: 5px;
   text-transform: uppercase;
   text-shadow: 0 0 20px rgba(240,192,64,0.5);
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.sorteo-label-flash {
+  animation: sorteo-label-pulse 0.9s ease infinite;
+}
+
+@keyframes sorteo-label-pulse {
+  0%, 100% {
+    color: var(--gold);
+    text-shadow:
+      0 0 12px rgba(240,192,64,0.5),
+      0 0 30px rgba(240,192,64,0.2);
+    letter-spacing: 5px;
+  }
+  50% {
+    color: var(--gold3);
+    text-shadow:
+      0 0 20px rgba(255,229,102,0.9),
+      0 0 50px rgba(240,192,64,0.5),
+      0 0 80px rgba(240,192,64,0.2);
+    letter-spacing: 6px;
+  }
 }
 
 .sorteo-dots {
@@ -918,7 +1131,7 @@ body::before {
 }
 @keyframes appEnter {
   from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* ── Jugadores: Grouped position selector ── */
@@ -1220,9 +1433,13 @@ body::before {
   z-index: 1;
   width: 100%;
   max-width: 420px;
-  padding: 28px 24px 20px;
-  overflow-y: auto;
+  /* padding, overflow y max-height se controlan por las sub-zonas
+     .onb-sticker-zone y .onb-fields-zone */
+  padding: 0;
+  overflow: hidden;
   max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 .onb-form-enter {
   animation: onbFormSlideIn .5s cubic-bezier(.22,1,.36,1) forwards;
@@ -1643,6 +1860,201 @@ body::before {
   flex-shrink: 0;
 }
 
+/* ── Capitán badge (squad list, team list, suplentes) ── */
+.capitan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #f0c040, #c87800);
+  color: #1a1000;
+  font-size: 9px;
+  font-weight: 900;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+/* Captain badge inside FUT card — absolute so it doesn't push the avatar down */
+.fut-card-capitan-c {
+  position: absolute;
+  top: 52px;
+  left: 7px;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #1a1000;
+  background: linear-gradient(135deg, #f0c040, #c87800);
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  z-index: 2;
+}
+
+/* Captain badge on the tactical pitch circle */
+.field-capitan-c {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #f0c040, #c87800);
+  border: 1.5px solid var(--bg);
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 7px;
+  font-weight: 900;
+  color: #1a1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+/* Captain toggle button (edit profile modal) */
+.btn-capitan {
+  background: transparent;
+  border: 1px solid rgba(240,192,64,0.3);
+  color: rgba(240,192,64,0.55);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-capitan:hover { border-color: rgba(240,192,64,0.6); color: var(--gold); }
+.btn-capitan.activo {
+  background: rgba(240,192,64,0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* ── Formato selector pills ── */
+.formato-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.formato-pill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.formato-pill.active {
+  background: rgba(240,192,64,0.12);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.formato-pill-sub {
+  font-size: 8px;
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Sorteo view tabs (Cancha / Equipos) ── */
+.sorteo-view-tabs {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  margin-bottom: 14px;
+  gap: 3px;
+}
+.sorteo-view-tab {
+  flex: 1;
+  padding: 9px 4px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text2);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+.sorteo-view-tab.active {
+  background: var(--gold);
+  color: #1a1000;
+  box-shadow: 0 2px 10px rgba(240,192,64,0.35);
+}
+
+/* ── Suplentes panel ── */
+.suplentes-panel {
+  margin-top: 12px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-left: 3px solid rgba(240,192,64,0.45);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.suplentes-header {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+.suplente-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 12px;
+  color: var(--text);
+}
+.suplente-row:last-child { border-bottom: none; }
+.suplente-num {
+  font-size: 9px;
+  color: var(--text3);
+  min-width: 14px;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+}
+.suplente-pos-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
 /* ── Formato partido badge in Sorteo ── */
 .formato-partido {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
@@ -1667,6 +2079,130 @@ body::before {
   background: linear-gradient(90deg, transparent, var(--gold), transparent);
   opacity: .5;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   FORMACION SELECTOR — estilo selector de táctica de WE/PES
+   ───────────────────────────────────────────────────────────── */
+
+.formacion-selector-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 10px 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.formacion-selector-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg,
+    rgba(21,101,192,0.6),
+    rgba(21,101,192,0.2) 40%,
+    rgba(185,28,28,0.2) 60%,
+    rgba(185,28,28,0.6)
+  );
+}
+
+.formacion-team-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.formacion-team-label {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.formacion-label-a { color: #90caf9; }
+.formacion-label-b { color: #fca5a5; text-align: right; }
+
+.formacion-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.formacion-btn-row-right {
+  justify-content: flex-end;
+}
+
+/* Botón de formación — compacto, estilo WE/PES */
+.formacion-btn {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all .15s cubic-bezier(.22,1,.36,1);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.formacion-btn:hover {
+  color: var(--text2);
+  border-color: var(--text2);
+  background: rgba(255,255,255,0.05);
+}
+.formacion-btn:active {
+  transform: scale(0.94);
+}
+
+/* Activo equipo A — azul */
+.formacion-btn-active-a {
+  color: #90caf9 !important;
+  border-color: rgba(21,101,192,0.8) !important;
+  background: rgba(21,101,192,0.18) !important;
+  box-shadow: 0 0 8px rgba(21,101,192,0.3), inset 0 1px 0 rgba(144,202,249,0.15);
+}
+
+/* Activo equipo B — rojo */
+.formacion-btn-active-b {
+  color: #fca5a5 !important;
+  border-color: rgba(185,28,28,0.8) !important;
+  background: rgba(185,28,28,0.18) !important;
+  box-shadow: 0 0 8px rgba(185,28,28,0.3), inset 0 1px 0 rgba(252,165,165,0.15);
+}
+
+.formacion-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  padding-top: 18px;
+}
+.formacion-divider-icon {
+  font-size: 14px;
+  opacity: 0.5;
+  line-height: 1;
+}
+
+/* ── Animación de reposicionamiento — jugadores corren a su lugar ── */
+/* "field-player-animated" se combina con "field-player" para
+   activar la transición de posición sin interferir con card-reveal */
+.field-player-animated {
+  transition:
+    left 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    top  0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Cuando acaba la animación de reveal (card-reveal), nos quedamos en la posición final.
+   La clase card-reveal usa "forwards" y dura 0.5s, así que después de eso
+   la transición de left/top ya funciona libremente. */
 
 /* ── Field player — "yo" highlight on the pitch ── */
 .field-player-yo .field-player-yo-circle {
@@ -1701,4 +2237,629 @@ body::before {
   letter-spacing: 0.3px;
   line-height: 1.5;
   padding: 0 4px;
+}
+
+/* ── Music bar — spinning disc animation ── */
+@keyframes music-disc-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Music bar equalizer bars */
+.music-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  padding-bottom: 1px;
+}
+.music-eq span {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--gold);
+  display: block;
+}
+.music-eq span:nth-child(1) { animation: eq1 0.65s ease infinite alternate; }
+.music-eq span:nth-child(2) { animation: eq2 0.48s ease infinite alternate; }
+.music-eq span:nth-child(3) { animation: eq3 0.82s ease infinite alternate; }
+@keyframes eq1 { 0% { height: 5px;  } 100% { height: 17px; } }
+@keyframes eq2 { 0% { height: 13px; } 100% { height: 6px;  } }
+@keyframes eq3 { 0% { height: 8px;  } 100% { height: 20px; } }
+
+/* ─────────────────────────────────────────────────────────────
+   STICKER CARD — Figurita Panini / FUT onboarding
+   Aspect ratio ~0.67 (2:3), layout: header / topleft / avatar / name / stats
+   ───────────────────────────────────────────────────────────── */
+
+/* ── Zona de la figurita en el onboarding ── */
+.onb-sticker-zone {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 20px 12px;
+  flex-shrink: 0;
+}
+
+/* ── Zona del formulario debajo de la figurita ── */
+.onb-fields-zone {
+  padding: 0 20px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Redefinir onb-form-wrap como flex column de dos zonas */
+.onb-form-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+/* Position picker compacto horizontal */
+.onb-pos-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+/* reutilizamos .onb-pos-group / .onb-pos-group-label / .onb-pos-row de antes */
+/* Los botones en modo compacto solo muestran el código */
+.onb-pos-btn {
+  /* ya definido arriba — ajuste: quitar min-width para modo compacto */
+  min-width: 44px;
+  padding: 5px 8px;
+}
+.onb-pos-btn-code {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+/* Ocultar nombre debajo del código en modo onboarding-compacto */
+.onb-fields-zone .onb-pos-btn-name { display: none; }
+
+/* Ajuste al campo de nombre — margen reducido */
+.onb-field-group--name { margin-bottom: 12px; }
+
+/* ── La carta propiamente dicha ── */
+.sticker-card {
+  position: relative;
+  width: 160px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid rgba(255,255,255,0.18);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 2px 8px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: box-shadow .35s ease, transform .35s cubic-bezier(.34,1.56,.64,1);
+  flex-shrink: 0;
+  /* Perspectiva para giro 3D */
+  transform-style: preserve-3d;
+}
+
+/* ── Variantes de color por posición — acento vía CSS custom properties ── */
+/*
+  --sticker-accent : color primario (hex)
+  --sticker-dark   : versión oscura para el gradiente de fondo
+  --sticker-glow   : rgba para glow y sombra
+  --sticker-glow2  : rgba más tenue para inset
+*/
+
+/* Portero */
+.sticker-POR {
+  --sticker-accent: #f59e0b;
+  --sticker-dark:   #3d2800;
+  --sticker-glow:   rgba(245,158,11,0.28);
+  --sticker-glow2:  rgba(255,200,60,0.18);
+  background: linear-gradient(160deg,
+    #1a1000 0%, #3d2800 25%, #6b4800 45%,
+    #4a3200 65%, #2a1c00 85%, #150e00 100%
+  );
+  border-color: rgba(245,158,11,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* Laterales — azul claro (ofensivos) */
+.sticker-LTI, .sticker-LTD {
+  --sticker-accent: #60a5fa;
+  --sticker-dark:   #001a50;
+  --sticker-glow:   rgba(96,165,250,0.22);
+  --sticker-glow2:  rgba(147,197,253,0.15);
+  background: linear-gradient(160deg,
+    #000d2e 0%, #001650 25%, #002488 45%,
+    #001a60 65%, #000e35 85%, #000718 100%
+  );
+  border-color: rgba(96,165,250,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* Centrales — azul oscuro (sólidos, defensivos) */
+.sticker-DFCi, .sticker-DFCd {
+  --sticker-accent: #1d4ed8;
+  --sticker-dark:   #000d30;
+  --sticker-glow:   rgba(29,78,216,0.28);
+  --sticker-glow2:  rgba(59,130,246,0.15);
+  background: linear-gradient(160deg,
+    #000818 0%, #000e2e 25%, #001560 45%,
+    #000f44 65%, #00071e 85%, #000208 100%
+  );
+  border-color: rgba(29,78,216,0.6);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* MDC — verde oscuro (doble pivote / destructor) */
+.sticker-MDC {
+  --sticker-accent: #059669;
+  --sticker-dark:   #002918;
+  --sticker-glow:   rgba(5,150,105,0.25);
+  --sticker-glow2:  rgba(16,185,129,0.15);
+  background: linear-gradient(160deg,
+    #001208 0%, #002818 25%, #003e28 45%,
+    #002c1c 65%, #001610 85%, #000805 100%
+  );
+  border-color: rgba(5,150,105,0.6);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* MC — verde medio (equilibrado) */
+.sticker-MC {
+  --sticker-accent: #10b981;
+  --sticker-dark:   #003018;
+  --sticker-glow:   rgba(16,185,129,0.22);
+  --sticker-glow2:  rgba(52,211,153,0.15);
+  background: linear-gradient(160deg,
+    #001a0a 0%, #002e14 25%, #004a22 45%,
+    #003318 65%, #001e0c 85%, #000e05 100%
+  );
+  border-color: rgba(16,185,129,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* MCI / MCD — verde esmeralda (carrileros) */
+.sticker-MCI, .sticker-MCD {
+  --sticker-accent: #34d399;
+  --sticker-dark:   #003820;
+  --sticker-glow:   rgba(52,211,153,0.22);
+  --sticker-glow2:  rgba(110,231,183,0.15);
+  background: linear-gradient(160deg,
+    #001e10 0%, #003820 25%, #005a34 45%,
+    #004028 65%, #002414 85%, #001008 100%
+  );
+  border-color: rgba(52,211,153,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* MOC — verde lima / turquesa (enganche / trequartista) */
+.sticker-MOC {
+  --sticker-accent: #6ee7b7;
+  --sticker-dark:   #004030;
+  --sticker-glow:   rgba(110,231,183,0.22);
+  --sticker-glow2:  rgba(167,243,208,0.15);
+  background: linear-gradient(160deg,
+    #002818 0%, #004830 25%, #006e48 45%,
+    #005038 65%, #003020 85%, #001410 100%
+  );
+  border-color: rgba(110,231,183,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* DC — rojo intenso (9 puro) */
+.sticker-DC {
+  --sticker-accent: #dc2626;
+  --sticker-dark:   #3a0000;
+  --sticker-glow:   rgba(220,38,38,0.25);
+  --sticker-glow2:  rgba(239,68,68,0.15);
+  background: linear-gradient(160deg,
+    #1e0000 0%, #3a0000 25%, #650a0a 45%,
+    #480505 65%, #2a0000 85%, #0f0000 100%
+  );
+  border-color: rgba(220,38,38,0.6);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* SD — rojo medio (segunda punta) */
+.sticker-SD {
+  --sticker-accent: #ef4444;
+  --sticker-dark:   #3e0808;
+  --sticker-glow:   rgba(239,68,68,0.22);
+  --sticker-glow2:  rgba(252,165,165,0.12);
+  background: linear-gradient(160deg,
+    #1e0000 0%, #3e0808 25%, #6e1414 45%,
+    #4e0a0a 65%, #2e0404 85%, #120000 100%
+  );
+  border-color: rgba(239,68,68,0.55);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* EXI / EXD — naranja-rojo (extremos: velocidad) */
+.sticker-EXI, .sticker-EXD {
+  --sticker-accent: #f97316;
+  --sticker-dark:   #3d1500;
+  --sticker-glow:   rgba(249,115,22,0.25);
+  --sticker-glow2:  rgba(253,186,116,0.12);
+  background: linear-gradient(160deg,
+    #1e0800 0%, #3d1500 25%, #6e2800 45%,
+    #4e1800 65%, #2e0c00 85%, #120400 100%
+  );
+  border-color: rgba(249,115,22,0.6);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px var(--sticker-glow),
+    inset 0 1px 0 var(--sticker-glow2);
+}
+
+/* ── Efecto "carta completa" — brillo al salir del sobre ── */
+.sticker-card.sticker-complete {
+  animation: card-out-of-pack .7s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes card-out-of-pack {
+  0%   { transform: scale(1) rotateY(0deg); }
+  30%  { transform: scale(1.08) rotateY(-8deg); }
+  60%  { transform: scale(1.05) rotateY(4deg); }
+  100% { transform: scale(1.03) rotateY(0deg); }
+}
+.sticker-card.sticker-complete .sticker-shine {
+  animation: card-shine-sweep 1s .1s ease forwards;
+}
+@keyframes card-shine-sweep {
+  0%   { opacity: 0; transform: translateX(-120%) skewX(-20deg); }
+  40%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(220%) skewX(-20deg); }
+}
+
+/* ── Animación flip al cambiar posición ── */
+@keyframes card-flip {
+  0%   { transform: rotateY(0deg) scale(1); }
+  50%  { transform: rotateY(90deg) scale(0.95); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+.sticker-flipping {
+  animation: card-flip 0.35s ease-in-out forwards !important;
+}
+
+/* ── Animación lanzamiento al confirmar ── */
+@keyframes sticker-launch {
+  0%   { transform: scale(1) translateY(0); opacity: 1; }
+  20%  { transform: scale(1.08) translateY(-8px); opacity: 1; }
+  100% { transform: scale(0.6) translateY(-120px); opacity: 0; }
+}
+.sticker-launching {
+  animation: sticker-launch 0.5s ease-in forwards !important;
+  pointer-events: none;
+}
+
+/* ── Textura de ruido/grano de la carta ── */
+.sticker-texture {
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* ── Efecto shine (destello diagonal) ── */
+.sticker-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255,255,255,0.18) 50%,
+    transparent 65%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-120%) skewX(-20deg);
+  z-index: 20;
+}
+
+/* ── Encabezado de la carta ── */
+.sticker-header {
+  position: relative;
+  z-index: 5;
+  padding: 5px 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Franja oscura semitransparente */
+  background: rgba(0,0,0,0.45);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.sticker-header-league {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.9);
+  text-transform: uppercase;
+  line-height: 1;
+}
+.sticker-header-rdm {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  filter: drop-shadow(0 0 4px rgba(240,192,64,0.6));
+}
+.sticker-header-sep {
+  font-size: 7px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── Overall + Posición (esquina superior izquierda) ── */
+.sticker-topleft {
+  position: absolute;
+  top: 26px;
+  left: 7px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+}
+.sticker-overall {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.sticker-pos-code {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 1px;
+  margin-top: 1px;
+}
+
+/* ── Zona del avatar ── */
+.sticker-avatar-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 5;
+  padding: 4px 0;
+}
+.sticker-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.sticker-avatar-filled {
+  background: rgba(0,0,0,0.4);
+  border: 2.5px solid rgba(255,255,255,0.35);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.sticker-avatar-empty {
+  background: rgba(0,0,0,0.2);
+  border: 2px dashed rgba(255,255,255,0.15);
+}
+.sticker-avatar-initials {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  text-shadow:
+    0 2px 8px rgba(0,0,0,0.8),
+    0 0 20px rgba(255,255,255,0.2);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.sticker-silhouette {
+  width: 54px;
+  height: 54px;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── Zona de nombre y badge de posición ── */
+.sticker-name-zone {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 4px;
+}
+.sticker-name {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.98);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  line-height: 1;
+}
+.sticker-name-placeholder {
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 3px;
+  font-size: 10px;
+  border-bottom: 1px dashed rgba(255,255,255,0.12);
+  padding-bottom: 2px;
+}
+.sticker-pos-badge {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 138px;
+}
+
+/* ── Stats grid — 3 columnas x 2 filas ── */
+.sticker-stats {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  padding: 4px 5px 6px;
+  background: rgba(0,0,0,0.35);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.sticker-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 2px 0;
+}
+.sticker-stat-val {
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.sticker-stat-label {
+  font-size: 6.5px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+/* ── Línea de brillo inferior ── */
+.sticker-footer-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.3) 30%,
+    rgba(255,255,255,0.5) 50%,
+    rgba(255,255,255,0.3) 70%,
+    transparent 100%
+  );
+  z-index: 10;
+}
+
+/* ── Acento por posición — footer / stats / stat-val ──
+   Todas las clases .sticker-{POS} exponen --sticker-accent.
+   Estos selectores aplican a cualquier clase que la defina.
+   Se listan individualmente para compatibilidad con Safari/iOS. ── */
+
+/* Footer line */
+.sticker-POR .sticker-footer-line,
+.sticker-LTI .sticker-footer-line, .sticker-LTD .sticker-footer-line,
+.sticker-DFCi .sticker-footer-line, .sticker-DFCd .sticker-footer-line,
+.sticker-MDC .sticker-footer-line,
+.sticker-MC .sticker-footer-line,
+.sticker-MCI .sticker-footer-line, .sticker-MCD .sticker-footer-line,
+.sticker-MOC .sticker-footer-line,
+.sticker-DC .sticker-footer-line,
+.sticker-SD .sticker-footer-line,
+.sticker-EXI .sticker-footer-line, .sticker-EXD .sticker-footer-line {
+  background: linear-gradient(90deg, transparent, var(--sticker-accent), transparent);
+  opacity: .8;
+}
+
+/* Header border */
+.sticker-POR .sticker-header,
+.sticker-LTI .sticker-header, .sticker-LTD .sticker-header,
+.sticker-DFCi .sticker-header, .sticker-DFCd .sticker-header,
+.sticker-MDC .sticker-header,
+.sticker-MC .sticker-header,
+.sticker-MCI .sticker-header, .sticker-MCD .sticker-header,
+.sticker-MOC .sticker-header,
+.sticker-DC .sticker-header,
+.sticker-SD .sticker-header,
+.sticker-EXI .sticker-header, .sticker-EXD .sticker-header {
+  border-bottom-color: color-mix(in srgb, var(--sticker-accent) 30%, transparent);
+}
+
+/* Stats strip background + border */
+.sticker-POR .sticker-stats,
+.sticker-LTI .sticker-stats, .sticker-LTD .sticker-stats,
+.sticker-DFCi .sticker-stats, .sticker-DFCd .sticker-stats,
+.sticker-MDC .sticker-stats,
+.sticker-MC .sticker-stats,
+.sticker-MCI .sticker-stats, .sticker-MCD .sticker-stats,
+.sticker-MOC .sticker-stats,
+.sticker-DC .sticker-stats,
+.sticker-SD .sticker-stats,
+.sticker-EXI .sticker-stats, .sticker-EXD .sticker-stats {
+  background: color-mix(in srgb, var(--sticker-accent) 10%, transparent);
+  border-top-color: color-mix(in srgb, var(--sticker-accent) 28%, transparent);
+}
+
+/* Stat values */
+.sticker-POR .sticker-stat-val,
+.sticker-LTI .sticker-stat-val, .sticker-LTD .sticker-stat-val,
+.sticker-DFCi .sticker-stat-val, .sticker-DFCd .sticker-stat-val,
+.sticker-MDC .sticker-stat-val,
+.sticker-MC .sticker-stat-val,
+.sticker-MCI .sticker-stat-val, .sticker-MCD .sticker-stat-val,
+.sticker-MOC .sticker-stat-val,
+.sticker-DC .sticker-stat-val,
+.sticker-SD .sticker-stat-val,
+.sticker-EXI .sticker-stat-val, .sticker-EXD .sticker-stat-val {
+  color: var(--sticker-accent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--sticker-accent) 50%, transparent);
 }
