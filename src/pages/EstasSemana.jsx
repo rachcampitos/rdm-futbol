@@ -1,8 +1,23 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+
+const CLOUDINARY_CLOUD = 'dml5vqnmu';
+const CLOUDINARY_PRESET = 'rdm-futbol-pagos';
+
+async function uploadToCloudinary(file) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.secure_url;
+}
 import { getWeekId, getInitials, formatFecha, getPosicionConfig, getPosicionLabel } from '../utils';
 import JugadorModal from '../components/JugadorModal';
 
@@ -155,9 +170,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     if (!miJugador || !file || subiendo) return;
     setSubiendo(true);
     try {
-      const sRef = storageRef(storage, `pagos/${weekId}/${miJugador.id}`);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
+      const url  = await uploadToCloudinary(file);
       const base = partido?.convocados ?? [];
       const idx  = base.findIndex(c => c.jugadorId === miJugador.id);
       if (idx !== -1) {
@@ -173,9 +186,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     if (!jugadorViendo || !file || subiendoAdmin) return;
     setSubiendoAdmin(true);
     try {
-      const sRef = storageRef(storage, `pagos/${weekId}/${jugadorViendo.id}`);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
+      const url  = await uploadToCloudinary(file);
       const base = partido?.convocados ?? [];
       const idx  = base.findIndex(c => c.jugadorId === jugadorViendo.id);
       if (idx !== -1) {
