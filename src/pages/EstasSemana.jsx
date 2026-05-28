@@ -74,7 +74,9 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
   const [horaInput, setHoraInput]         = useState('9 PM');
   const [canchaInput, setCanchaInput]     = useState('');
   const [subiendo, setSubiendo]           = useState(false);
+  const [subiendoAdmin, setSubiendoAdmin] = useState(false);
   const fileInputRef                      = useRef(null);
+  const adminFileInputRef                 = useRef(null);
 
   const weekId   = getWeekId();
   const cuota    = partido?.cuota ?? 5000;
@@ -164,6 +166,24 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
       }
     } finally {
       setSubiendo(false);
+    }
+  }
+
+  async function subirComprobanteAdmin(file) {
+    if (!jugadorViendo || !file || subiendoAdmin) return;
+    setSubiendoAdmin(true);
+    try {
+      const sRef = storageRef(storage, `pagos/${weekId}/${jugadorViendo.id}`);
+      await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
+      const base = partido?.convocados ?? [];
+      const idx  = base.findIndex(c => c.jugadorId === jugadorViendo.id);
+      if (idx !== -1) {
+        const nuevos = base.map((c, i) => i === idx ? { ...c, pagoUrl: url } : c);
+        await updateDoc(doc(db, 'partidos', weekId), { convocados: nuevos });
+      }
+    } finally {
+      setSubiendoAdmin(false);
     }
   }
 
@@ -476,14 +496,25 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
       })}
 
       {jugadorViendo && (
-        <JugadorModal
-          jugador={jugadorViendo}
-          convocado={convocadoMap[jugadorViendo.id]}
-          penaltisJugador={penaltis.filter(p => p.jugadorId === jugadorViendo.id)}
-          jugadorActual={jugadorActual}
-          onClose={() => setJugadorViendo(null)}
-          onAddPenalti={handleAddPenalti}
-        />
+        <>
+          <input
+            ref={adminFileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) subirComprobanteAdmin(f); e.target.value = ''; }}
+          />
+          <JugadorModal
+            jugador={jugadorViendo}
+            convocado={convocadoMap[jugadorViendo.id]}
+            penaltisJugador={penaltis.filter(p => p.jugadorId === jugadorViendo.id)}
+            jugadorActual={jugadorActual}
+            onClose={() => setJugadorViendo(null)}
+            onAddPenalti={handleAddPenalti}
+            onSubirComprobante={() => adminFileInputRef.current?.click()}
+            subiendoComprobante={subiendoAdmin}
+          />
+        </>
       )}
 
       {/* ── SECCIÓN C: CUOTA ── */}

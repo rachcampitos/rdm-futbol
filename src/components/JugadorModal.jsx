@@ -64,7 +64,7 @@ function getCardTier(overall) {
   return 'bronze';
 }
 
-export default function JugadorModal({ jugador, convocado, penaltisJugador, onClose, onAddPenalti }) {
+export default function JugadorModal({ jugador, convocado, penaltisJugador, onClose, onAddPenalti, onSubirComprobante, subiendoComprobante }) {
   const [tipoSel, setTipoSel]         = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando]     = useState(false);
@@ -200,30 +200,61 @@ export default function JugadorModal({ jugador, convocado, penaltisJugador, onCl
           )}
         </div>
 
-        {/* Payment proof thumbnail */}
-        {convocado?.pagoUrl && (
-          <div style={{ padding: '0 16px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={() => setImgExpanded(true)}
-              style={{
-                padding: 0, border: '2px solid rgba(240,192,64,0.4)', borderRadius: 8,
-                overflow: 'hidden', cursor: 'pointer', background: 'none', flexShrink: 0,
-              }}
-            >
-              <img
-                src={convocado.pagoUrl}
-                alt="Comprobante"
-                style={{ width: 64, height: 64, objectFit: 'cover', display: 'block' }}
-              />
-            </button>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1, textTransform: 'uppercase' }}>
-                Comprobante de pago
+        {/* Payment proof */}
+        {(convocado?.pagoUrl || (pagado && onSubirComprobante)) && (
+          <div style={{ padding: '0 16px 16px' }}>
+            {convocado?.pagoUrl ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => setImgExpanded(true)}
+                  style={{
+                    padding: 0, border: '2px solid rgba(240,192,64,0.4)', borderRadius: 8,
+                    overflow: 'hidden', cursor: 'pointer', background: 'none', flexShrink: 0,
+                  }}
+                >
+                  <img
+                    src={convocado.pagoUrl}
+                    alt="Comprobante"
+                    style={{ width: 64, height: 64, objectFit: 'cover', display: 'block' }}
+                  />
+                </button>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Comprobante de pago
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setImgExpanded(true)}
+                      style={{ fontSize: 10 }}
+                    >
+                      Ver
+                    </button>
+                    {onSubirComprobante && (
+                      <button
+                        className="btn btn-outline btn-sm"
+                        onClick={onSubirComprobante}
+                        disabled={subiendoComprobante}
+                        style={{ fontSize: 10 }}
+                      >
+                        {subiendoComprobante ? 'Subiendo...' : 'Reemplazar'}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', marginTop: 2 }}>
-                Toca para ver completo
-              </div>
-            </div>
+            ) : (
+              onSubirComprobante && (
+                <button
+                  className="btn btn-outline btn-full"
+                  onClick={onSubirComprobante}
+                  disabled={subiendoComprobante}
+                  style={{ fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {subiendoComprobante ? '⏳ Subiendo...' : '📷 Subir comprobante'}
+                </button>
+              )
+            )}
           </div>
         )}
 
