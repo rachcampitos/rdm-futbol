@@ -558,6 +558,20 @@ function saveJugadorPersistente(id, nombre) {
   _setCookie(id);
 }
 
+const ADMIN_HASH = 'rdm-admin-2025';
+
+function checkAdmin() {
+  const param = new URLSearchParams(window.location.search).get('admin');
+  if (param === ADMIN_HASH) {
+    sessionStorage.setItem('rdm_admin', '1');
+    // Clean URL
+    const clean = window.location.pathname;
+    window.history.replaceState({}, '', clean);
+    return true;
+  }
+  return sessionStorage.getItem('rdm_admin') === '1';
+}
+
 function leerJugadorLocal() {
   const id =
     localStorage.getItem('rdm_jugador_id') ||
@@ -565,12 +579,12 @@ function leerJugadorLocal() {
     _getUrlUid();
   if (!id) return null;
   const nombre = localStorage.getItem('rdm_jugador_nombre') ?? '';
-  // Restore localStorage if it was empty (came from cookie/URL)
   if (nombre) localStorage.setItem('rdm_jugador_id', id);
   return { id, nombre };
 }
 
 export default function App() {
+  const [isAdmin, setIsAdmin]           = useState(() => checkAdmin());
   const [jugadorLocal, setJugadorLocal] = useState(() => leerJugadorLocal());
   const [tab, setTab]                   = useState('semana');
   const [jugadores, setJugadores]       = useState([]);
@@ -635,8 +649,8 @@ export default function App() {
 
   const { playing, started, toggle, prevSong, nextSong, songName } = useAudioPlayer();
 
-  // Show onboarding if no jugador registered
-  if (!jugadorLocal) {
+  // Show onboarding if no jugador registered (admin bypasses this)
+  if (!jugadorLocal && !isAdmin) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
@@ -672,15 +686,27 @@ export default function App() {
           <div className="header-line-diamond" />
           <div className="header-line-bar" />
         </div>
-        {/* Profile edit button — top right corner */}
-        <button
-          className="header-profile-btn"
-          onClick={() => setEditandoPerfil(true)}
-          title={`Editar perfil: ${jugadorActual?.nombre ?? ''}`}
-          aria-label="Editar perfil"
-        >
-          <span style={{ fontSize: 16 }}>👤</span>
-        </button>
+        {/* Profile / Admin button — top right corner */}
+        {isAdmin ? (
+          <div style={{
+            position: 'absolute', top: 10, right: 14,
+            background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)',
+            borderRadius: 8, padding: '4px 8px',
+            fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
+            color: '#ef4444', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase',
+          }}>
+            ADMIN
+          </div>
+        ) : (
+          <button
+            className="header-profile-btn"
+            onClick={() => setEditandoPerfil(true)}
+            title={`Editar perfil: ${jugadorActual?.nombre ?? ''}`}
+            aria-label="Editar perfil"
+          >
+            <span style={{ fontSize: 16 }}>👤</span>
+          </button>
+        )}
         {/* Copy personal link — top left corner */}
         {jugadorActual?.id && <CopiarEnlaceBtn jugadorId={jugadorActual.id} />}
       </header>
@@ -707,7 +733,7 @@ export default function App() {
       </nav>
 
       {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} />}
-      {tab === 'roster'   && <Jugadores jugadores={jugadores} />}
+      {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} />}
       {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} />}
       {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} />}
       <MusicBar

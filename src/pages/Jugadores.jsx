@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getInitials, POSICION_GRUPOS, POSICION_DETALLADA, getPosicionConfig, getCategoriaBase } from '../utils';
 
@@ -46,7 +46,7 @@ function getCardTier(overall) {
   return 'bronze';
 }
 
-export default function Jugadores({ jugadores }) {
+export default function Jugadores({ jugadores, isAdmin }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId]     = useState(null);
   const [nombre, setNombre]     = useState('');
@@ -75,6 +75,11 @@ export default function Jugadores({ jugadores }) {
 
   async function toggleActivo(j) {
     await updateDoc(doc(db, 'jugadores', j.id), { activo: !j.activo });
+  }
+
+  async function eliminarJugador(j) {
+    if (!window.confirm(`¿Eliminar a ${j.nombre} permanentemente?`)) return;
+    await deleteDoc(doc(db, 'jugadores', j.id));
   }
 
   const activos   = jugadores.filter(j => j.activo !== false);
@@ -113,6 +118,7 @@ export default function Jugadores({ jugadores }) {
                 j={j}
                 onEdit={openEdit}
                 onToggle={toggleActivo}
+                onEliminar={isAdmin ? eliminarJugador : null}
                 revealed={revealId === j.id}
                 onReveal={() => setRevealId(revealId === j.id ? null : j.id)}
                 animDelay={idx * 60}
@@ -132,6 +138,7 @@ export default function Jugadores({ jugadores }) {
                 j={j}
                 onEdit={openEdit}
                 onToggle={toggleActivo}
+                onEliminar={isAdmin ? eliminarJugador : null}
                 revealed={revealId === j.id}
                 onReveal={() => setRevealId(revealId === j.id ? null : j.id)}
                 animDelay={idx * 60}
@@ -215,7 +222,7 @@ export default function Jugadores({ jugadores }) {
   );
 }
 
-function FutCard({ j, onEdit, onToggle, revealed, onReveal, animDelay }) {
+function FutCard({ j, onEdit, onToggle, onEliminar, revealed, onReveal, animDelay }) {
   const cfg     = getPosicionConfig(j.posicion);
   const overall = POS_OVERALL[j.posicion] ?? POS_OVERALL[getCategoriaBase(j.posicion)] ?? 72;
   const stats   = POS_STATS[j.posicion] ?? POS_STATS[getCategoriaBase(j.posicion)] ?? POS_STATS.defensa;
@@ -287,6 +294,15 @@ function FutCard({ j, onEdit, onToggle, revealed, onReveal, animDelay }) {
           >
             {j.activo !== false ? 'Activo' : 'Inactivo'}
           </button>
+          {onEliminar && (
+            <button
+              className="fut-card-action-btn"
+              onClick={e => { e.stopPropagation(); onEliminar(j); }}
+              style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }}
+            >
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
 
