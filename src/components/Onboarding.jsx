@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  collection, addDoc, getDocs, query, where, serverTimestamp,
+  collection, addDoc, getDocs, query, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { POSICION_GRUPOS, POSICION_DETALLADA, getInitials } from '../utils';
@@ -168,24 +168,61 @@ export function StickerCard({ nombre, posicion, isComplete, isFlipping, isLaunch
 
 /* ── Onboarding — pantalla de bienvenida estilo FIFA "Press START" ── */
 export default function Onboarding({ onComplete }) {
-  const [fase, setFase] = useState('intro');   // intro | form | confirming | enter
+  const [fase, setFase] = useState('intro');   // intro | elegir | form | buscar | confirming | enter
   const [nombre, setNombre] = useState('');
   const [posicion, setPosicion] = useState('DC');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [jugadoresExistentes, setJugadoresExistentes] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [filtro, setFiltro] = useState('');
+  const [nombreConfirm, setNombreConfirm] = useState('');
 
   // Track whether this is the initial render so we don't flip on mount
   const isFirstRender = useRef(true);
   const flipTimeout = useRef(null);
 
-  // Auto-advance: "PRESS START" text shows for 2.2s, then drops into form
+  // Auto-advance: "PRESS START" text shows for 2.2s, then drops into elegir
   useEffect(() => {
     if (fase !== 'intro') return;
-    const t = setTimeout(() => setFase('form'), 2200);
+    const t = setTimeout(() => setFase('elegir'), 2200);
     return () => clearTimeout(t);
   }, [fase]);
+
+  async function abrirBuscar() {
+    setFase('buscar');
+    setCargando(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'jugadores')));
+      setJugadoresExistentes(
+        snap.docs
+          .filter(d => d.data().activo !== false)
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre))
+      );
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  function entrar(jugadorId, n) {
+    const exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+    localStorage.setItem('rdm_jugador_id',     jugadorId);
+    localStorage.setItem('rdm_jugador_nombre', n);
+    document.cookie = `rdm_uid=${encodeURIComponent(jugadorId)}; expires=${exp}; path=/; SameSite=Lax`;
+    setNombreConfirm(n);
+    setFase('confirming');
+    setTimeout(() => {
+      setFase('enter');
+      setTimeout(() => onComplete({ id: jugadorId, nombre: n }), 900);
+    }, 1400);
+  }
+
+  function seleccionarJugador(j) {
+    entrar(j.id, j.nombre);
+  }
 
   // Flip animation when posicion changes — skip the initial mount
   useEffect(() => {
@@ -206,47 +243,16 @@ export default function Onboarding({ onComplete }) {
     const n = nombre.trim();
     if (!n) { setError('Escribe tu nombre para entrar al partido'); return; }
     setError('');
-
-    // Launch animation first (0.5s), then save + transition
     setIsLaunching(true);
-
     setTimeout(async () => {
       setSaving(true);
       try {
-        // Search Firestore for existing player with same name (case-insensitive via trim)
-        const snap = await getDocs(
-          query(collection(db, 'jugadores'), where('nombre', '==', n))
-        );
-
-        let jugadorId;
-        if (!snap.empty) {
-          jugadorId = snap.docs[0].id;
-        } else {
-          // Create new player
-          const ref = await addDoc(collection(db, 'jugadores'), {
-            nombre: n,
-            posicion,
-            activo: true,
-            createdAt: serverTimestamp(),
-          });
-          jugadorId = ref.id;
-        }
-
-        // Save to localStorage + cookie (1yr fallback)
-        localStorage.setItem('rdm_jugador_id',     jugadorId);
-        localStorage.setItem('rdm_jugador_nombre', n);
-        localStorage.setItem('rdm_jugador_posicion', posicion);
-        const _exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `rdm_uid=${encodeURIComponent(jugadorId)}; expires=${_exp}; path=/; SameSite=Lax`;
-
-        // Transition: confirm screen then enter
+        const ref = await addDoc(collection(db, 'jugadores'), {
+          nombre: n, posicion, activo: true, createdAt: serverTimestamp(),
+        });
         setSaving(false);
         setIsLaunching(false);
-        setFase('confirming');
-        setTimeout(() => {
-          setFase('enter');
-          setTimeout(() => onComplete({ id: jugadorId, nombre: n, posicion }), 900);
-        }, 1400);
+        entrar(ref.id, n);
       } catch (e) {
         console.error(e);
         setError('Error al guardar. Intenta de nuevo.');
@@ -293,7 +299,112 @@ export default function Onboarding({ onComplete }) {
           <div className="onb-press-blink">Presiona para continuar</div>
 
           {/* Tap/click anywhere to skip */}
-          <div className="onb-intro-tap" onClick={() => setFase('form')} />
+          <div className="onb-intro-tap" onClick={() => setFase('elegir')} />
+        </div>
+      )}
+
+      {/* ── ELEGIR SCREEN ── */}
+      {fase === 'elegir' && (
+        <div className="onb-form-wrap onb-form-enter" style={{ justifyContent: 'center', gap: 24 }}>
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <div className="onb-logo-title" style={{ fontSize: 36 }}>RDM</div>
+            <div className="onb-logo-subtitle" style={{ fontSize: 18 }}>Fútbol</div>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: 'var(--text3)', textTransform: 'uppercase', fontFamily: 'Rajdhani, sans-serif', textAlign: 'center' }}>
+            ¿Cómo quieres entrar?
+          </div>
+          <button
+            className="onb-cta"
+            onClick={() => setFase('form')}
+            style={{ marginBottom: 0 }}
+          >
+            <span className="onb-cta-icon">⚽</span>
+            <span>SOY NUEVO</span>
+          </button>
+          <button
+            className="onb-cta"
+            onClick={abrirBuscar}
+            style={{ background: 'rgba(240,192,64,0.08)', borderColor: 'rgba(240,192,64,0.4)', color: 'var(--gold)' }}
+          >
+            <span className="onb-cta-icon">👤</span>
+            <span>YA ESTOY REGISTRADO</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── BUSCAR SCREEN ── */}
+      {fase === 'buscar' && (
+        <div className="onb-form-wrap onb-form-enter">
+          <div className="onb-fields-zone" style={{ paddingTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <button
+                onClick={() => setFase('elegir')}
+                style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: 20, cursor: 'pointer', padding: 0 }}
+              >
+                ←
+              </button>
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 2, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
+                Selecciona tu nombre
+              </div>
+            </div>
+
+            <input
+              className="onb-field-input"
+              value={filtro}
+              onChange={e => setFiltro(e.target.value)}
+              placeholder="Buscar nombre..."
+              autoFocus
+              style={{ marginBottom: 12 }}
+            />
+
+            {cargando ? (
+              <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 24, fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1 }}>
+                Cargando jugadores...
+              </div>
+            ) : (
+              <div style={{ overflowY: 'auto', maxHeight: '52dvh', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {jugadoresExistentes
+                  .filter(j => j.nombre.toLowerCase().includes(filtro.toLowerCase()))
+                  .map(j => (
+                    <button
+                      key={j.id}
+                      onClick={() => seleccionarJugador(j)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 14px',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: 12, cursor: 'pointer',
+                        transition: 'all 0.15s', textAlign: 'left',
+                      }}
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: 'rgba(240,192,64,0.12)',
+                        border: '1.5px solid rgba(240,192,64,0.4)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700, color: 'var(--gold)',
+                        fontFamily: 'Rajdhani, sans-serif', flexShrink: 0,
+                      }}>
+                        {j.nombre.trim().split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text1)' }}>{j.nombre}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 0.5 }}>{j.posicion}</div>
+                      </div>
+                    </button>
+                  ))}
+                {jugadoresExistentes.filter(j => j.nombre.toLowerCase().includes(filtro.toLowerCase())).length === 0 && !cargando && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 20, fontSize: 12, fontFamily: 'Rajdhani, sans-serif' }}>
+                    No encontrado — ¿eres nuevo?{' '}
+                    <span style={{ color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setFase('form')}>
+                      Regístrate aquí
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -392,7 +503,7 @@ export default function Onboarding({ onComplete }) {
               <div className="onb-confirm-screen">
                 <div className="onb-confirm-ball">⚽</div>
                 <div className="onb-confirm-text">
-                  Bienvenido, <strong>{nombre}</strong>
+                  Bienvenido, <strong>{nombreConfirm || nombre}</strong>
                 </div>
                 <div className="onb-confirm-sub">Cargando la cancha...</div>
               </div>
