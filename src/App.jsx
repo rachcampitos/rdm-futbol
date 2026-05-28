@@ -633,12 +633,12 @@ export default function App() {
     return jugadores.find(j => j.id === jugadorLocal.id) ?? jugadorLocal;
   }, [jugadorLocal, jugadores]);
 
+  const { playing, started, toggle, prevSong, nextSong, songName } = useAudioPlayer();
+
   // Show onboarding if no jugador registered
   if (!jugadorLocal) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }
-
-  const { playing, started, toggle, prevSong, nextSong, songName } = useAudioPlayer();
 
   return (
     <div className={`app ${appVisible ? 'app-visible' : 'app-hidden'}`} style={{ paddingBottom: 60 }}>
