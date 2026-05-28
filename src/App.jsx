@@ -465,6 +465,67 @@ function CopiarEnlaceBtn({ jugadorId }) {
   );
 }
 
+// Detect WhatsApp / Facebook / Instagram / Telegram in-app browsers
+function isWebView() {
+  const ua = navigator.userAgent || '';
+  return /WhatsApp|FBAN|FBAV|Instagram|Telegram|MicroMessenger/i.test(ua);
+}
+
+function WebViewBanner() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed || !isWebView()) return null;
+
+  const url = window.location.href;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  function abrirEnNavegador() {
+    if (isIOS) {
+      // Deep-link to Safari on iOS
+      window.location.href = url;
+    } else {
+      // On Android, opening with intent triggers browser picker
+      window.open(url, '_system');
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: 'rgba(240,192,64,0.97)',
+      padding: '12px 16px',
+      display: 'flex', alignItems: 'center', gap: 10,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#040d21', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 0.5, lineHeight: 1.3 }}>
+          Para que la app recuerde tu perfil, ábrela en {isIOS ? 'Safari' : 'Chrome'}
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(4,13,33,0.65)', marginTop: 2 }}>
+          Toca el botón o usa los 3 puntos → "Abrir en {isIOS ? 'Safari' : 'navegador'}"
+        </div>
+      </div>
+      <button
+        onClick={abrirEnNavegador}
+        style={{
+          background: '#040d21', color: 'var(--gold)', border: 'none',
+          borderRadius: 8, padding: '8px 12px', fontSize: 11,
+          fontWeight: 700, fontFamily: 'Rajdhani, sans-serif',
+          letterSpacing: 0.5, cursor: 'pointer', flexShrink: 0,
+        }}
+      >
+        {isIOS ? 'Abrir Safari' : 'Abrir Chrome'}
+      </button>
+      <button
+        onClick={() => setDismissed(true)}
+        style={{ background: 'none', border: 'none', color: 'rgba(4,13,33,0.5)', fontSize: 18, cursor: 'pointer', padding: '0 2px', flexShrink: 0 }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'semana',   icon: '⚽', label: 'Semana'  },
   { id: 'roster',   icon: '👥', label: 'Roster'  },
@@ -581,6 +642,7 @@ export default function App() {
 
   return (
     <div className={`app ${appVisible ? 'app-visible' : 'app-hidden'}`} style={{ paddingBottom: 60 }}>
+      <WebViewBanner />
       <header className="header">
         <div className="header-badge">
           <span className="header-badge-dot" />
