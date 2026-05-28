@@ -541,15 +541,17 @@ export default function App() {
     return unsub;
   }, []);
 
-  // When jugadores arrive from Firestore, fill in a missing nombre (cookie/URL restore)
+  // When jugadores arrive from Firestore: (1) fill missing nombre from cookie/URL restore,
+  // (2) migrate existing users — set cookie if they don't have one yet
   useEffect(() => {
-    if (!jugadorLocal?.id || jugadorLocal.nombre) return;
+    if (!jugadorLocal?.id || !jugadores.length) return;
     const j = jugadores.find(x => x.id === jugadorLocal.id);
     if (j) {
+      // Always re-save so existing users get the cookie on their first visit after this deploy
       saveJugadorPersistente(j.id, j.nombre);
-      setJugadorLocal({ id: j.id, nombre: j.nombre });
+      if (!jugadorLocal.nombre) setJugadorLocal({ id: j.id, nombre: j.nombre });
     }
-  }, [jugadores, jugadorLocal]);
+  }, [jugadores]);
 
   // Fade app in after onboarding or on first render when already registered
   useEffect(() => {
