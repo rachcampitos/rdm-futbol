@@ -232,10 +232,12 @@ export default function Onboarding({ onComplete }) {
           jugadorId = ref.id;
         }
 
-        // Save to localStorage
-        localStorage.setItem('rdm_jugador_id', jugadorId);
+        // Save to localStorage + cookie (1yr fallback)
+        localStorage.setItem('rdm_jugador_id',     jugadorId);
         localStorage.setItem('rdm_jugador_nombre', n);
         localStorage.setItem('rdm_jugador_posicion', posicion);
+        const _exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `rdm_uid=${encodeURIComponent(jugadorId)}; expires=${_exp}; path=/; SameSite=Lax`;
 
         // Transition: confirm screen then enter
         setSaving(false);

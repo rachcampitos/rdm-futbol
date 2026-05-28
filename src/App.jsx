@@ -307,8 +307,7 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
     setSaving(true);
     try {
       await updateDoc(doc(db, 'jugadores', jugadorActual.id), { nombre: n, posicion, capitan: esCapitan });
-      localStorage.setItem('rdm_jugador_nombre', n);
-      localStorage.setItem('rdm_jugador_posicion', posicion);
+      saveJugadorPersistente(jugadorActual.id, n);
       onSave({ ...jugadorActual, nombre: n, posicion });
       onClose();
     } catch (e) {
@@ -427,6 +426,45 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
   );
 }
 
+function CopiarEnlaceBtn({ jugadorId }) {
+  const [copied, setCopied] = useState(false);
+
+  function copiar() {
+    const url = `${window.location.origin}${window.location.pathname}?uid=${jugadorId}`;
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <button
+      onClick={copiar}
+      title="Copiar enlace personal"
+      style={{
+        position: 'absolute', top: 12, left: 14,
+        background: 'none', border: 'none',
+        color: copied ? '#10b981' : 'var(--text3)',
+        cursor: 'pointer', padding: 4,
+        fontSize: 16, lineHeight: 1,
+        transition: 'color 0.2s',
+      }}
+    >
+      {copied ? '✓' : '🔗'}
+    </button>
+  );
+}
+
 const TABS = [
   { id: 'semana',   icon: '⚽', label: 'Semana'  },
   { id: 'roster',   icon: '👥', label: 'Roster'  },
@@ -434,11 +472,41 @@ const TABS = [
   { id: 'penaltis', icon: '🟨', label: 'Penaltis'},
 ];
 
+// ── Profile persistence — 3 layers ──────────────────────────────────────────
+// Layer 1: localStorage  (fast, cleared when user explicitly clears site data)
+// Layer 2: Cookie 1yr    (survives "clear cache" on most mobile browsers)
+// Layer 3: ?uid= URL     (nuclear fallback — paste link in WhatsApp, always works)
+
+function _setCookie(id) {
+  const exp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = `rdm_uid=${encodeURIComponent(id)}; expires=${exp}; path=/; SameSite=Lax`;
+}
+
+function _getCookieId() {
+  const m = document.cookie.match(/(?:^|;\s*)rdm_uid=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function _getUrlUid() {
+  return new URLSearchParams(window.location.search).get('uid');
+}
+
+function saveJugadorPersistente(id, nombre) {
+  localStorage.setItem('rdm_jugador_id',     id);
+  localStorage.setItem('rdm_jugador_nombre', nombre);
+  _setCookie(id);
+}
+
 function leerJugadorLocal() {
-  const id     = localStorage.getItem('rdm_jugador_id');
-  const nombre = localStorage.getItem('rdm_jugador_nombre');
-  if (id && nombre) return { id, nombre };
-  return null;
+  const id =
+    localStorage.getItem('rdm_jugador_id') ||
+    _getCookieId()                          ||
+    _getUrlUid();
+  if (!id) return null;
+  const nombre = localStorage.getItem('rdm_jugador_nombre') ?? '';
+  // Restore localStorage if it was empty (came from cookie/URL)
+  if (nombre) localStorage.setItem('rdm_jugador_id', id);
+  return { id, nombre };
 }
 
 export default function App() {
@@ -472,6 +540,16 @@ export default function App() {
     );
     return unsub;
   }, []);
+
+  // When jugadores arrive from Firestore, fill in a missing nombre (cookie/URL restore)
+  useEffect(() => {
+    if (!jugadorLocal?.id || jugadorLocal.nombre) return;
+    const j = jugadores.find(x => x.id === jugadorLocal.id);
+    if (j) {
+      saveJugadorPersistente(j.id, j.nombre);
+      setJugadorLocal({ id: j.id, nombre: j.nombre });
+    }
+  }, [jugadores, jugadorLocal]);
 
   // Fade app in after onboarding or on first render when already registered
   useEffect(() => {
@@ -539,6 +617,8 @@ export default function App() {
         >
           <span style={{ fontSize: 16 }}>👤</span>
         </button>
+        {/* Copy personal link — top left corner */}
+        {jugadorActual?.id && <CopiarEnlaceBtn jugadorId={jugadorActual.id} />}
       </header>
 
       {editandoPerfil && jugadorActual && (
