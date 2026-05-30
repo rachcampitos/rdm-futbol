@@ -771,7 +771,6 @@ input[type="range"]:focus-visible {
 .fut-card-inform .fut-card-stat-num { color: #ffd4d4; text-shadow: 0 0 6px rgba(255,80,80,0.45); }
 .fut-card-inform .fut-card-stat-label { color: rgba(255,170,180,0.72); }
 .fut-card-inform .fut-card-divider    { background: rgba(220,40,80,0.38); }
-.fut-card-inform .fut-card-avatar     { border-color: rgba(220,60,80,0.7); box-shadow: 0 0 14px rgba(220,40,60,0.4); }
 
 .fut-card-toty {
   background: linear-gradient(145deg,
@@ -801,7 +800,6 @@ input[type="range"]:focus-visible {
 .fut-card-toty .fut-card-stat-num { color: #f0c040; text-shadow: 0 0 8px rgba(240,192,64,0.55); }
 .fut-card-toty .fut-card-stat-label { color: rgba(240,192,64,0.72); }
 .fut-card-toty .fut-card-divider    { background: rgba(240,192,64,0.32); }
-.fut-card-toty .fut-card-avatar     { border-color: rgba(240,192,64,0.82); box-shadow: 0 0 18px rgba(240,192,64,0.42); }
 
 /* FUT Card inner layout */
 .fut-card-inner {
@@ -854,39 +852,11 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar {
-  width: 76px; height: 102px; border-radius: 8px;
+  width: 76px; height: 102px;
   overflow: hidden;
-  background: rgba(0,0,0,0.15);
-  border: 1.5px solid rgba(255,255,255,0.2);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  background: transparent;
   flex-shrink: 0;
-  isolation: auto;
-}
-
-/* Tier-specific avatar glow */
-.fut-card-gold .fut-card-avatar {
-  border-color: rgba(240,192,64,0.8);
-  box-shadow: 0 0 18px rgba(240,192,64,0.5), 0 0 5px rgba(240,192,64,0.25);
-}
-.fut-card-silver .fut-card-avatar {
-  border-color: rgba(100,148,215,0.75);
-  box-shadow: 0 0 14px rgba(100,148,215,0.4);
-}
-.fut-card-bronze .fut-card-avatar {
-  border-color: rgba(176,96,48,0.75);
-  box-shadow: 0 0 12px rgba(176,96,48,0.35);
-}
-.fut-card-elite .fut-card-avatar {
-  border-color: rgba(140,90,255,0.85);
-  box-shadow: 0 0 22px rgba(120,60,255,0.6), 0 0 7px rgba(0,200,255,0.25);
-}
-.fut-card-toty .fut-card-avatar {
-  border-color: rgba(100,180,255,0.75);
-  box-shadow: 0 0 20px rgba(0,80,200,0.45);
-}
-.fut-card-inform .fut-card-avatar {
-  border-color: rgba(220,40,80,0.75);
-  box-shadow: 0 0 18px rgba(200,0,50,0.45);
+  mix-blend-mode: screen;
 }
 
 /* Tier-specific text color */

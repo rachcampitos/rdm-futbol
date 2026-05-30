@@ -13,39 +13,43 @@ const STAT_MAX    = 99;
 const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,146,60,0.92)' : v >= 65 ? 'rgba(240,192,64,0.92)' : 'rgba(100,148,215,0.85)';
 const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
-/* ── Player silhouette sprite (4×2 grid, 750×500px JPG) ── */
+/* ── Player silhouette sprites
+ *  Sheet 1: silhouettes.jpg  (4×2, row1-col0 = female, excluded)
+ *  Sheet 2: silhouettes2.jpg (4×2, all-male: GK poses + field poses)
+ *  POSE_MAP: [row, col, sheet]  — each position gets a unique pose
+ */
 const POSE_MAP = {
-  POR:  [1, 1], // lunge/reach — GK row1 col1
-  LTI:  [0, 3], // full sprint
-  LTD:  [0, 3], // full sprint
-  DFCi: [1, 3], // wide defensive stance
-  DFCd: [1, 3], // wide defensive stance
-  MDC:  [1, 2], // low control / tackle
-  MCI:  [0, 2], // running with ball
-  MC:   [0, 2], // running with ball
-  MCD:  [0, 2], // running with ball
-  MOC:  [0, 1], // active dribble
-  EXI:  [0, 0], // shooting
-  EXD:  [0, 0], // shooting
-  SD:   [0, 0], // shooting
-  DC:   [0, 0], // shooting
+  POR:  [0, 0, 2], // GK dive arm up
+  LTI:  [0, 3, 1], // full sprint
+  LTD:  [1, 1, 2], // jogging with ball
+  DFCi: [1, 0, 2], // standing defensive
+  DFCd: [1, 1, 1], // lunge / tackle
+  MDC:  [1, 2, 1], // low control
+  MCI:  [0, 2, 1], // running with ball
+  MC:   [0, 1, 1], // active dribble
+  MCD:  [1, 3, 1], // wide stance
+  MOC:  [1, 3, 2], // volley
+  EXI:  [0, 0, 1], // shoot / sprint
+  EXD:  [1, 2, 2], // dribbling forward
+  SD:   [0, 3, 2], // standing with ball (upright)
+  DC:   [0, 2, 2], // kicking
 };
 
+const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg' };
+
 function PlayerSilhouette({ posicion }) {
-  const [row, col] = POSE_MAP[posicion] ?? [0, 1];
+  const [row, col, sheet = 1] = POSE_MAP[posicion] ?? [0, 1, 1];
   const xPct = (col / 3) * 100;
   const yPct = row * 100;
-  // invert(1): navy→warm-beige, white→black
-  // brightness(3)+contrast(8): beige→white, black stays black → crisp white silhouette on black bg
   return (
     <div style={{
       width: '100%', height: '100%',
-      backgroundImage: 'url(/silhouettes.jpg)',
+      backgroundImage: `url(${SPRITE[sheet]})`,
       backgroundSize: '400% 200%',
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
       filter: 'invert(1) brightness(3) contrast(5)',
-      opacity: 0.62,
+      opacity: 0.82,
     }} />
   );
 }
