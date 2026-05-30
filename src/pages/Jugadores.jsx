@@ -13,6 +13,32 @@ const STAT_MAX    = 99;
 const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,146,60,0.92)' : v >= 65 ? 'rgba(240,192,64,0.92)' : 'rgba(100,148,215,0.85)';
 const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
+/* ── Player silhouette SVG ── */
+function PlayerSilhouette({ isGK }) {
+  return isGK ? (
+    <svg viewBox="0 0 28 46" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
+      style={{ width: '78%', height: '78%', opacity: 0.72 }}>
+      <circle cx="14" cy="5" r="4" fill="currentColor" stroke="none"/>
+      <line x1="14" y1="9" x2="14" y2="26" strokeWidth="6.5"/>
+      <line x1="14" y1="12" x2="3"  y2="5"  strokeWidth="3"/>
+      <line x1="14" y1="12" x2="25" y2="5"  strokeWidth="3"/>
+      <line x1="14" y1="26" x2="9"  y2="40" strokeWidth="4"/>
+      <line x1="14" y1="26" x2="19" y2="40" strokeWidth="4"/>
+    </svg>
+  ) : (
+    <svg viewBox="0 0 28 48" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
+      style={{ width: '78%', height: '78%', opacity: 0.72 }}>
+      <circle cx="14" cy="5" r="4" fill="currentColor" stroke="none"/>
+      <line x1="14" y1="9"  x2="14" y2="26" strokeWidth="6.5"/>
+      <line x1="14" y1="14" x2="5"  y2="22" strokeWidth="3"/>
+      <line x1="14" y1="14" x2="24" y2="9"  strokeWidth="3"/>
+      <line x1="14" y1="26" x2="8"  y2="41" strokeWidth="4"/>
+      <line x1="14" y1="26" x2="21" y2="39" strokeWidth="4"/>
+      <circle cx="7" cy="44" r="2.5" fill="currentColor" stroke="none" opacity="0.6"/>
+    </svg>
+  );
+}
+
 const RADAR_ANGLES = { pac: -90, tir: -30, pas: 30, reg: 90, def: 150, fis: 210 };
 const RADAR_CX = 90, RADAR_CY = 90, RADAR_MAX_R = 58, RADAR_VB = 180;
 const RAD = Math.PI / 180;
@@ -433,11 +459,20 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
             {/* Admin: special card variant */}
             {isAdmin && editId && (
               <div className="form-group">
-                <label className="form-label">Tarjeta especial</label>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Carta especial</label>
+                  <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 4, padding: '1px 5px', fontFamily: 'Rajdhani', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                    Solo admin
+                  </span>
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani', marginBottom: 10, lineHeight: 1.5 }}>
+                  Sobreescribe el color de la tarjeta. Usalo para reconocimientos — MVP, figura del torneo, racha activa.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
                   {[
-                    { value: null,   label: 'Normal',  desc: 'Estándar',     color: 'var(--text3)' },
-                    { value: 'toty', label: '🏆 TOTY',  desc: 'Team of Year', color: '#60a5fa' },
+                    { value: null,     emoji: '⚙️',  label: 'Automático', desc: 'Bronce / Plata / Oro según stats', swatch: 'linear-gradient(135deg,#7a5000,#f0c040)' },
+                    { value: 'toty',   emoji: '🏆',  label: 'Figura',     desc: 'MVP · Mejor del torneo',            swatch: 'linear-gradient(135deg,#001058,#1040c0)' },
+                    { value: 'inform', emoji: '🔥',  label: 'En racha',   desc: 'Jugador destacado de la semana',    swatch: 'linear-gradient(135deg,#650014,#e0003a)' },
                   ].map(opt => {
                     const sel = cardVariant === opt.value;
                     return (
@@ -445,17 +480,18 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
                         key={String(opt.value)}
                         onClick={() => setCardVariant(opt.value)}
                         style={{
-                          flex: 1, padding: '8px 4px', borderRadius: 8,
-                          border: `1.5px solid ${sel ? opt.color : 'rgba(255,255,255,0.1)'}`,
-                          background: sel ? `${opt.color}18` : 'rgba(255,255,255,0.03)',
-                          cursor: 'pointer',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                          padding: '8px 4px 7px', borderRadius: 8, cursor: 'pointer',
+                          border: sel ? '2px solid rgba(240,192,64,0.7)' : '1.5px solid rgba(255,255,255,0.08)',
+                          background: sel ? 'rgba(240,192,64,0.1)' : 'rgba(255,255,255,0.03)',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                          transition: 'border-color 0.15s, background 0.15s',
                         }}
                       >
-                        <span style={{ fontSize: 12, fontWeight: 700, color: sel ? opt.color : 'var(--text2)', fontFamily: 'Rajdhani', letterSpacing: 0.5 }}>
-                          {opt.label}
+                        <div style={{ width: 28, height: 6, borderRadius: 3, background: opt.swatch }} />
+                        <span style={{ fontSize: 9, fontWeight: 700, color: sel ? 'var(--gold)' : 'var(--text2)', fontFamily: 'Rajdhani', letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1 }}>
+                          {opt.emoji} {opt.label}
                         </span>
-                        <span style={{ fontSize: 8, color: 'var(--text3)', fontFamily: 'Rajdhani' }}>
+                        <span style={{ fontSize: 7.5, color: 'var(--text3)', fontFamily: 'Rajdhani', textAlign: 'center', lineHeight: 1.3 }}>
                           {opt.desc}
                         </span>
                       </button>
@@ -483,6 +519,7 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
   const stats = { PAC: pac, TIR: tir, PAS: pas, REG: reg, DEF: def, FIS: fis };
   const tier    = isMvp ? 'inform' : (j.cardVariant ?? getCardTier(overall));
   const inactive = j.activo === false;
+  const isGK    = j.posicion === 'POR';
 
   const shortName = (() => {
     const parts = j.nombre.trim().split(' ');
@@ -546,7 +583,7 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
               ? { borderColor: 'rgba(240,192,64,0.5)', boxShadow: '0 0 16px rgba(240,192,64,0.25)' }
               : {}}
           >
-            {getInitials(j.nombre)}
+            <PlayerSilhouette isGK={isGK} />
           </div>
         </div>
 
