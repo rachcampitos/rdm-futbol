@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -18,71 +18,15 @@ async function uploadToCloudinary(file) {
   const data = await res.json();
   return data.secure_url;
 }
-import { getWeekId, getInitials, formatFecha, getPosicionConfig, getPosicionLabel } from '../utils';
+import { getWeekId, getInitials, formatFecha, getPosicionConfig, getPosicionLabel, calcStats, getRating, getCardTier } from '../utils';
 import JugadorModal from '../components/JugadorModal';
 
-function getRating(jugador) {
-  if (jugador.overall) return jugador.overall;
-  const base = { portero: 72, defensa: 68, mediocampo: 70, delantero: 74 };
-  const cat = jugador.categoria ?? jugador.posicion ?? 'mediocampo';
-  return base[cat] ?? 70;
-}
 
-function hashInt(str) {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) h = (Math.imul(33, h) ^ str.charCodeAt(i)) >>> 0;
-  return h;
-}
 
-function calcStats(jugador) {
-  const overall = getRating(jugador);
-  const seed = hashInt(jugador.id ?? jugador.nombre ?? '?');
-
-  // Position-aware weights: [pac, tir, pas, reg, def, fis]
-  const W = {
-    POR:  [0.74, 0.62, 0.78, 0.72, 0.93, 0.90],
-    LTI:  [0.90, 0.72, 0.85, 0.84, 0.90, 0.86],
-    DTI:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    DFC:  [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCi: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCd: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    LTD:  [0.90, 0.74, 0.85, 0.84, 0.90, 0.86],
-    DTD:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    MC:   [0.84, 0.82, 0.93, 0.88, 0.80, 0.84],
-    MCD:  [0.80, 0.74, 0.88, 0.82, 0.91, 0.88],
-    MCO:  [0.86, 0.90, 0.95, 0.93, 0.62, 0.80],
-    EXI:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    EXD:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    SD:   [0.88, 0.95, 0.80, 0.88, 0.50, 0.84],
-    DC:   [0.85, 0.97, 0.77, 0.86, 0.46, 0.87],
-  };
-  const w = W[jugador.posicion] ?? [0.88, 0.88, 0.88, 0.88, 0.75, 0.85];
-
-  function stat(wi, offset) {
-    const r = ((seed * (offset * 2654435761)) >>> 0) % 8;
-    return Math.min(99, Math.round(overall * wi + r));
-  }
-
-  return {
-    pac: jugador.pac ?? stat(w[0], 1),
-    tir: jugador.tir ?? stat(w[1], 2),
-    pas: jugador.pas ?? stat(w[2], 3),
-    reg: jugador.reg ?? stat(w[3], 4),
-    def: jugador.def ?? stat(w[4], 5),
-    fis: jugador.fis ?? stat(w[5], 6),
-  };
-}
-
-function getCardTier(overall) {
-  if (overall >= 85) return 'elite';
-  if (overall >= 75) return 'gold';
-  if (overall >= 65) return 'silver';
-  return 'bronze';
-}
-
-export default function EstasSemana({ jugadores, partido, jugadorActual, penaltis = [] }) {
+export default function EstasSemana({ jugadores, partido, jugadorActual, penaltis = [], onEditarPerfil, isAdmin, rachasMap = {}, weeklyMvpId }) {
   const [cuotaEdit, setCuotaEdit]         = useState(false);
   const [cuotaInput, setCuotaInput]       = useState('');
+  const [cuotaError, setCuotaError]       = useState('');
   const [jugadorViendo, setJugadorViendo] = useState(null);
   const [partidoEdit, setPartidoEdit]     = useState(false);
   const [fechaInput, setFechaInput]       = useState('');
@@ -90,8 +34,12 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
   const [canchaInput, setCanchaInput]     = useState('');
   const [subiendo, setSubiendo]           = useState(false);
   const [subiendoAdmin, setSubiendoAdmin] = useState(false);
+  const [waCopiado, setWaCopiado]         = useState(false);
+  const [subiendoMapa, setSubiendoMapa]   = useState(false);
+  const [mapaExpanded, setMapaExpanded]   = useState(false);
   const fileInputRef                      = useRef(null);
   const adminFileInputRef                 = useRef(null);
+  const mapaFileInputRef                  = useRef(null);
 
   const weekId   = getWeekId();
   const cuota    = partido?.cuota ?? 5000;
@@ -145,13 +93,14 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         posicion: miJugador.posicion,
         estado: 'confirmado',
         pagado: false,
+        confirmedAt: serverTimestamp(),
       }];
     } else if (base[idx].estado === 'confirmado') {
       // Was confirmed → remove (baja)
       nuevos = base.filter((_, i) => i !== idx);
     } else {
       // Was baja → confirm again
-      nuevos = base.map((c, i) => i === idx ? { ...c, estado: 'confirmado' } : c);
+      nuevos = base.map((c, i) => i === idx ? { ...c, estado: 'confirmado', confirmedAt: serverTimestamp() } : c);
     }
     await updateDoc(ref, { convocados: nuevos });
   }
@@ -175,7 +124,11 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
       const idx  = base.findIndex(c => c.jugadorId === miJugador.id);
       if (idx !== -1) {
         const nuevos = base.map((c, i) => i === idx ? { ...c, pagoUrl: url } : c);
-        await updateDoc(doc(db, 'partidos', weekId), { convocados: nuevos });
+        await Promise.all([
+          updateDoc(doc(db, 'partidos', weekId), { convocados: nuevos }),
+          // Also persist on the player doc — survives partido resets
+          updateDoc(doc(db, 'jugadores', miJugador.id), { [`pagos.${weekId}`]: url }),
+        ]);
       }
     } finally {
       setSubiendo(false);
@@ -191,16 +144,36 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
       const idx  = base.findIndex(c => c.jugadorId === jugadorViendo.id);
       if (idx !== -1) {
         const nuevos = base.map((c, i) => i === idx ? { ...c, pagoUrl: url } : c);
-        await updateDoc(doc(db, 'partidos', weekId), { convocados: nuevos });
+        await Promise.all([
+          updateDoc(doc(db, 'partidos', weekId), { convocados: nuevos }),
+          // Also persist on the player doc — survives partido resets
+          updateDoc(doc(db, 'jugadores', jugadorViendo.id), { [`pagos.${weekId}`]: url }),
+        ]);
       }
     } finally {
       setSubiendoAdmin(false);
     }
   }
 
+  async function subirMapa(file) {
+    if (!file || subiendoMapa) return;
+    setSubiendoMapa(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      await ensurePartido();
+      await updateDoc(doc(db, 'partidos', weekId), { mapaUrl: url });
+    } finally {
+      setSubiendoMapa(false);
+    }
+  }
+
   async function guardarCuota() {
     const val = parseInt(cuotaInput, 10);
-    if (!val || val < 0) return;
+    if (!val || val < 100) {
+      setCuotaError('Ingresa un monto válido (mínimo S/ 100)');
+      return;
+    }
+    setCuotaError('');
     await ensurePartido();
     await updateDoc(doc(db, 'partidos', weekId), { cuota: val });
     setCuotaEdit(false);
@@ -235,8 +208,55 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     });
   }
 
-  // Squad list: only players who confirmed for this week
-  const squadOrdenado = activos.filter(j => convocadoMap[j.id]?.estado === 'confirmado');
+  function copiarConvocatoria() {
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    const fecha = partido?.fechaTexto ? `${partido.fechaTexto}${partido.horaTexto ? ` · ${partido.horaTexto}` : ''}` : 'esta semana';
+    const lines = activos.map(j => `• ${j.nombre} → ${baseUrl}?uid=${j.id}`);
+    const msg = `⚽ *RDM Fútbol* — ${fecha}\nConfirma tu asistencia:\n\n${lines.join('\n')}`;
+    navigator.clipboard?.writeText(msg).then(() => {
+      setWaCopiado(true);
+      setTimeout(() => setWaCopiado(false), 2500);
+    }).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = msg;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setWaCopiado(true);
+      setTimeout(() => setWaCopiado(false), 2500);
+    });
+  }
+
+  // Squad list: confirmed players ordered by:
+  // 1) Has comprobante → by confirmedAt asc
+  // 2) No comprobante, within 24h → by confirmedAt asc
+  // 3) No comprobante, after 24h → by confirmedAt asc (penalized)
+  const VEINTICUATRO_H = 24 * 60 * 60 * 1000;
+  const ahora = Date.now();
+
+  function getConfirmedMs(conv) {
+    const d = conv?.confirmedAt?.toDate?.();
+    return d ? d.getTime() : null;
+  }
+
+  const squadOrdenado = activos
+    .filter(j => convocadoMap[j.id]?.estado === 'confirmado')
+    .sort((a, b) => {
+      const ca = convocadoMap[a.id];
+      const cb = convocadoMap[b.id];
+      const aTs = getConfirmedMs(ca);
+      const bTs = getConfirmedMs(cb);
+      const aVencido = !ca?.pagoUrl && aTs !== null && (ahora - aTs) > VEINTICUATRO_H;
+      const bVencido = !cb?.pagoUrl && bTs !== null && (ahora - bTs) > VEINTICUATRO_H;
+      const gA = ca?.pagoUrl ? 0 : aVencido ? 2 : 1;
+      const gB = cb?.pagoUrl ? 0 : bVencido ? 2 : 1;
+      if (gA !== gB) return gA - gB;
+      if (aTs === null && bTs === null) return 0;
+      if (aTs === null) return 1;
+      if (bTs === null) return -1;
+      return aTs - bTs;
+    });
 
   return (
     <div className="page">
@@ -299,6 +319,68 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
           }}>
             Sin fecha definida — toca Editar para agregar
           </div>
+        )}
+
+        {/* Mapa de cancha */}
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <input
+            ref={mapaFileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) subirMapa(f); e.target.value = ''; }}
+          />
+          {partido?.mapaUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={() => setMapaExpanded(true)}
+                style={{ padding: 0, border: '2px solid rgba(240,192,64,0.35)', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'none', flexShrink: 0 }}
+              >
+                <img src={partido.mapaUrl} alt="Mapa cancha" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
+              </button>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
+                  🗺️ Mapa de cancha
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setMapaExpanded(true)} style={{ fontSize: 10 }}>
+                    Ver
+                  </button>
+                  <button className="btn btn-outline btn-sm" onClick={() => mapaFileInputRef.current?.click()} disabled={subiendoMapa} style={{ fontSize: 10 }}>
+                    {subiendoMapa ? 'Subiendo...' : 'Reemplazar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="btn btn-outline btn-full"
+              onClick={() => mapaFileInputRef.current?.click()}
+              disabled={subiendoMapa}
+              style={{ fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              {subiendoMapa ? '⏳ Subiendo...' : '🗺️ Subir mapa de cancha'}
+            </button>
+          )}
+        </div>
+
+        {/* Mapa expanded */}
+        {mapaExpanded && partido?.mapaUrl && createPortal(
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+            onClick={() => setMapaExpanded(false)}
+          >
+            <img
+              src={partido.mapaUrl}
+              alt="Mapa cancha"
+              style={{ maxWidth: '100%', maxHeight: '85dvh', borderRadius: 12, objectFit: 'contain' }}
+              onClick={e => e.stopPropagation()}
+            />
+            <div style={{ marginTop: 16, fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'Rajdhani', letterSpacing: 1 }}>
+              Toca fuera para cerrar
+            </div>
+          </div>,
+          document.body
         )}
       </div>
 
@@ -384,6 +466,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         </div>
       ) : (
         <>
+          {/* TODO C-4: file input needs label wrapper — blocked because input lives in parent scope while trigger button is inside MiTarjeta child component */}
           <input
             ref={fileInputRef}
             type="file"
@@ -400,15 +483,34 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
             onToggleAsistencia={toggleMiAsistencia}
             onTogglePago={toggleMiPago}
             onSubirComprobante={() => fileInputRef.current?.click()}
+            onEditarPerfil={onEditarPerfil}
             weekId={weekId}
             cuota={cuota}
+            racha={rachasMap[miJugador.id] ?? 0}
+            esMvp={weeklyMvpId === miJugador.id}
           />
         </>
       )}
 
       {/* ── SECCIÓN B: SQUAD DE LA SEMANA ── */}
-      <div className="section-label" style={{ marginTop: 20 }}>
-        Squad de la semana
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 6 }}>
+        <div className="section-label" style={{ marginTop: 0, marginBottom: 0, border: 'none' }}>Squad de la semana</div>
+        {isAdmin && activos.length > 0 && (
+          <button
+            onClick={copiarConvocatoria}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: waCopiado ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${waCopiado ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.15)'}`,
+              borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+              fontSize: 10, fontWeight: 700, fontFamily: 'Rajdhani',
+              color: waCopiado ? '#10b981' : 'var(--text2)',
+              letterSpacing: 0.5, transition: 'all 0.2s',
+            }}
+          >
+            {waCopiado ? '✓ Copiado' : '📲 WhatsApp'}
+          </button>
+        )}
       </div>
 
       {/* Stats bar */}
@@ -440,13 +542,15 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         const pagado     = conv?.pagado;
         const esYo       = miJugador?.id === j.id;
         const cfg        = getPosicionConfig(j.posicion);
+        const convTs     = getConfirmedMs(conv);
+        const vencido    = !conv?.pagoUrl && convTs !== null && (ahora - convTs) > VEINTICUATRO_H;
 
         return (
           <div
             key={j.id}
             className={`player-row squad-player-row ${confirmado ? 'confirmed' : ''} ${esYo ? 'es-yo' : ''}`}
             onClick={() => setJugadorViendo(j)}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', opacity: vencido ? 0.7 : 1 }}
           >
             <div className="player-avatar" style={{ borderColor: cfg.color, color: cfg.color }}>
               {getInitials(j.nombre)}
@@ -456,6 +560,17 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
                 <div className="player-name">{j.nombre}</div>
                 {j.capitan && <span className="capitan-badge">C</span>}
                 {esYo && <span className="yo-badge">TÚ</span>}
+                {vencido && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
+                    color: '#f59e0b', background: 'rgba(245,158,11,0.12)',
+                    border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: 4, padding: '1px 5px',
+                    fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase',
+                  }}>
+                    ⏰ +24h
+                  </span>
+                )}
               </div>
               <span
                 className="player-pos-badge"
@@ -524,11 +639,23 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
             onAddPenalti={handleAddPenalti}
             onSubirComprobante={() => adminFileInputRef.current?.click()}
             subiendoComprobante={subiendoAdmin}
+            esMvp={weeklyMvpId === jugadorViendo.id}
           />
         </>
       )}
 
-      {/* ── SECCIÓN C: CUOTA ── */}
+      {/* ── SECCIÓN C: VOTACIÓN MVP ── */}
+      {partido?.cerrado && (
+        <VotacionMvp
+          partido={partido}
+          jugadores={jugadores}
+          miJugadorId={miJugador?.id}
+          weekId={weekId}
+          weeklyMvpId={weeklyMvpId}
+        />
+      )}
+
+      {/* ── SECCIÓN D: CUOTA ── */}
       <div className="section-label" style={{ marginTop: 20 }}>Cuota semanal</div>
       <div className="week-card" style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: cuotaEdit ? 10 : 0 }}>
@@ -543,17 +670,24 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
           </button>
         </div>
         {cuotaEdit && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <input
-              className="form-input"
-              type="number"
-              value={cuotaInput}
-              onChange={e => setCuotaInput(e.target.value)}
-              placeholder="Monto"
-              autoFocus
-            />
-            <button className="btn btn-gold" onClick={guardarCuota}>OK</button>
-            <button className="btn btn-outline" onClick={() => setCuotaEdit(false)}>✕</button>
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="form-input"
+                type="number"
+                value={cuotaInput}
+                onChange={e => { setCuotaInput(e.target.value); setCuotaError(''); }}
+                placeholder="Monto"
+                autoFocus
+              />
+              <button className="btn btn-gold" onClick={guardarCuota}>OK</button>
+              <button className="btn btn-outline" onClick={() => { setCuotaEdit(false); setCuotaError(''); }}>✕</button>
+            </div>
+            {cuotaError && (
+              <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4, fontFamily: 'Rajdhani' }}>
+                {cuotaError}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -565,9 +699,9 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
 }
 
 // ── Mi Tarjeta — the hero component ────────────────────────────────────────
-function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsistencia, onTogglePago, onSubirComprobante, weekId, cuota }) {
+function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsistencia, onTogglePago, onSubirComprobante, onEditarPerfil, weekId, cuota, racha = 0, esMvp = false }) {
   const overall  = getRating(jugador);
-  const tier     = getCardTier(overall);
+  const tier     = esMvp ? 'inform' : (jugador.cardVariant ?? getCardTier(overall));
   const cfg      = getPosicionConfig(jugador.posicion);
   const posLabel = getPosicionLabel(jugador.posicion);
   const stats    = calcStats(jugador);
@@ -595,6 +729,11 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
               <div>
                 <div className="fut-card-overall">{overall}</div>
                 <div className="fut-card-pos">{posLabel}</div>
+                {(jugador.posicionesAlt ?? []).length > 0 && (
+                  <div style={{ fontSize: 6, color: 'rgba(255,255,255,0.5)', fontFamily: 'Rajdhani', letterSpacing: 0.3, lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+                    {jugador.posicionesAlt.map(p => getPosicionLabel(p)).join('·')}
+                  </div>
+                )}
                 {jugador.capitan && <div className="fut-card-capitan-c">C</div>}
               </div>
               <div className="fut-card-flag">🇵🇪</div>
@@ -624,6 +763,59 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
           </div>
         </div>
       </div>
+
+      {/* MVP / Racha badges */}
+      {(esMvp || racha >= 2) && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+          {esMvp && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 700, fontFamily: 'Rajdhani',
+              color: '#ef4444', background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.35)',
+              borderRadius: 20, padding: '3px 12px', letterSpacing: 0.5,
+            }}>
+              ⚡ Jugador de la semana
+            </span>
+          )}
+          {racha >= 2 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 700, fontFamily: 'Rajdhani',
+              color: '#f97316', background: 'rgba(249,115,22,0.1)',
+              border: '1px solid rgba(249,115,22,0.35)',
+              borderRadius: 20, padding: '3px 12px', letterSpacing: 0.5,
+            }}>
+              🔥 {racha} semanas seguidas
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Edit profile — glow pulse CTA */}
+      {onEditarPerfil && (
+        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          <button
+            onClick={onEditarPerfil}
+            style={{
+              background: 'rgba(240,192,64,0.08)',
+              border: '1.5px solid rgba(240,192,64,0.45)',
+              borderRadius: 20,
+              padding: '6px 20px',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              color: 'var(--gold)',
+              fontFamily: 'Rajdhani, sans-serif',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              animation: 'glow-pulse 2s ease infinite',
+            }}
+          >
+            ✎ Editar perfil
+          </button>
+        </div>
+      )}
 
       {/* Status indicator under card */}
       <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -657,7 +849,7 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
           onClick={onToggleAsistencia}
         >
           <span className="btn-accion-check">{confirmado ? '✓' : '○'}</span>
-          <span className="btn-accion-label">{confirmado ? 'VOY' : 'VOY'}</span>
+          <span className="btn-accion-label">{confirmado ? 'CONFIRMADO' : 'VOY'}</span>
         </button>
 
         <button
@@ -666,9 +858,19 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
           disabled={!confirmado}
         >
           <span className="btn-accion-check">{pague ? '✓' : 'S/'}</span>
-          <span className="btn-accion-label">{pague ? 'PAGUÉ' : 'PAGUÉ'}</span>
+          <span className="btn-accion-label">{pague ? 'PAGUÉ' : 'PAGAR'}</span>
         </button>
       </div>
+
+      {/* Disabled PAGUÉ hint — only shown when not confirmed */}
+      {!confirmado && (
+        <div style={{
+          textAlign: 'center', fontSize: 10, color: 'var(--text3)',
+          letterSpacing: 0.5, fontFamily: 'Rajdhani, sans-serif', marginTop: 4,
+        }}>
+          Confirma con VOY antes de marcar el pago
+        </div>
+      )}
 
       {/* Cuota hint */}
       {confirmado && !pague && (
@@ -695,6 +897,153 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
               {subiendo ? '⏳ Subiendo...' : '📷 Subir comprobante Yape'}
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VotacionMvp({ partido, jugadores, miJugadorId, weekId, weeklyMvpId }) {
+  const participantes = useMemo(() => {
+    const ids = [...(partido.equipoA ?? []), ...(partido.equipoB ?? [])];
+    return ids.map(id => jugadores.find(j => j.id === id)).filter(Boolean);
+  }, [partido, jugadores]);
+
+  if (participantes.length === 0) return null;
+
+  const mvpVotos   = partido.mvpVotos ?? {};
+  const totalVotos = Object.keys(mvpVotos).length;
+  const miVoto     = miJugadorId ? mvpVotos[miJugadorId] : null;
+
+  const conteo = {};
+  Object.values(mvpVotos).forEach(id => { conteo[id] = (conteo[id] ?? 0) + 1; });
+  const maxVotos = Math.max(...Object.values(conteo), 0);
+
+  const lista = participantes
+    .map(j => ({ ...j, votos: conteo[j.id] ?? 0 }))
+    .sort((a, b) => b.votos - a.votos);
+
+  async function votar(jugadorId) {
+    if (!miJugadorId || miVoto) return;
+    await updateDoc(doc(db, 'partidos', weekId), {
+      [`mvpVotos.${miJugadorId}`]: jugadorId,
+    });
+  }
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div className="section-label" style={{ marginTop: 0, marginBottom: 0, border: 'none' }}>
+          ⚡ Jugador de la semana
+        </div>
+        {totalVotos > 0 && (
+          <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani', letterSpacing: 0.5 }}>
+            {totalVotos} voto{totalVotos !== 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
+      {!miVoto && miJugadorId && (
+        <div style={{
+          fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani',
+          letterSpacing: 0.5, marginBottom: 10,
+        }}>
+          Vota por el mejor del partido — un voto por persona
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {lista.map(j => {
+          const esMiVoto  = miVoto === j.id;
+          const esLider   = j.votos > 0 && j.votos === maxVotos;
+          const esMvp     = weeklyMvpId === j.id;
+          const pct       = maxVotos > 0 ? Math.round((j.votos / maxVotos) * 100) : 0;
+          const cfg       = getPosicionConfig(j.posicion);
+
+          return (
+            <div
+              key={j.id}
+              onClick={() => !miVoto && votar(j.id)}
+              style={{
+                position: 'relative', overflow: 'hidden',
+                background: esMiVoto ? 'rgba(239,68,68,0.08)' : esMvp ? 'rgba(249,115,22,0.06)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${esMiVoto ? 'rgba(239,68,68,0.4)' : esMvp ? 'rgba(249,115,22,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius: 10, padding: '9px 12px',
+                cursor: miVoto ? 'default' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {/* Vote bar fill */}
+              {miVoto && j.votos > 0 && (
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${pct}%`,
+                  background: esMiVoto ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.03)',
+                  transition: 'width 0.4s ease',
+                  pointerEvents: 'none',
+                }} />
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+                <div className="player-avatar" style={{
+                  width: 30, height: 30, minWidth: 30, fontSize: 11,
+                  borderColor: esMiVoto ? '#ef4444' : cfg.color,
+                  color: esMiVoto ? '#ef4444' : cfg.color,
+                  background: esMvp ? 'rgba(239,68,68,0.1)' : undefined,
+                }}>
+                  {getInitials(j.nombre)}
+                </div>
+
+                <span style={{
+                  flex: 1, fontSize: 13,
+                  fontWeight: esMiVoto || esMvp ? 700 : 500,
+                  color: esMiVoto ? '#fca5a5' : 'var(--text)',
+                }}>
+                  {j.nombre}
+                  {j.capitan && <span className="capitan-badge" style={{ marginLeft: 4 }}>C</span>}
+                </span>
+
+                {miVoto ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {esMvp && <span style={{ fontSize: 12 }}>⚡</span>}
+                    <span style={{
+                      fontSize: 15, fontWeight: 700, fontFamily: 'Rajdhani',
+                      color: esMiVoto ? '#ef4444' : esLider ? '#f97316' : 'var(--text3)',
+                      minWidth: 16, textAlign: 'right',
+                    }}>
+                      {j.votos}
+                    </span>
+                    {esMiVoto && (
+                      <span style={{
+                        fontSize: 8, fontWeight: 700, letterSpacing: 1,
+                        color: '#ef4444', fontFamily: 'Rajdhani',
+                        background: 'rgba(239,68,68,0.12)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: 3, padding: '1px 4px',
+                      }}>
+                        TU VOTO
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  miJugadorId && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, fontFamily: 'Rajdhani',
+                      color: 'var(--text3)', letterSpacing: 0.5,
+                    }}>
+                      VOTAR →
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {!miJugadorId && (
+        <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani', marginTop: 8, textAlign: 'center' }}>
+          Regístrate para votar
         </div>
       )}
     </div>

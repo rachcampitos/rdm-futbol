@@ -2,72 +2,90 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { getInitials, POSICION_GRUPOS, POSICION_DETALLADA, getPosicionConfig, getCategoriaBase } from '../utils';
+import { getInitials, POSICION_GRUPOS, POSICION_DETALLADA, getPosicionConfig, getPosicionLabel, calcStats, getRating, getCardTier } from '../utils';
 
-/* FUT-style overall rating per BASE category */
-const POS_OVERALL = {
-  portero: 78, defensa: 74, mediocampo: 76, delantero: 79,
-  // Detailed overrides — some get special overall boosts
-  POR: 78,
-  LTI: 73, LTD: 73, DFCi: 75, DFCd: 75,
-  MDC: 76, MC: 77, MOC: 78, MCI: 74, MCD: 74,
-  DC: 80, EXI: 78, EXD: 78, SD: 77,
-};
+const STAT_KEYS   = ['pac', 'tir', 'pas', 'reg', 'def', 'fis'];
+const STAT_LABELS = { pac: 'PAC', tir: 'TIR', pas: 'PAS', reg: 'REG', def: 'DEF', fis: 'FIS' };
+const STAT_NAMES  = { pac: 'Velocidad', tir: 'Tiro', pas: 'Pase', reg: 'Regate', def: 'Defensa', fis: 'Físico' };
+const STAT_BUDGET = 450;
+const STAT_MIN    = 40;
+const STAT_MAX    = 99;
 
-/* FUT-style stats per detailed position — PAC SHO PAS DRI DEF PHY */
-const POS_STATS = {
-  // Legacy base categories (fallback)
-  portero:    { PAC: 55, SHO: 30, PAS: 52, DRI: 48, DEF: 82, PHY: 75 },
-  defensa:    { PAC: 70, SHO: 45, PAS: 62, DRI: 58, DEF: 78, PHY: 76 },
-  mediocampo: { PAC: 74, SHO: 62, PAS: 80, DRI: 75, DEF: 64, PHY: 70 },
-  delantero:  { PAC: 83, SHO: 82, PAS: 68, DRI: 79, DEF: 38, PHY: 72 },
-  // Detailed FIFA positions
-  POR:  { PAC: 55, SHO: 30, PAS: 52, DRI: 48, DEF: 82, PHY: 75 },
-  DFCi: { PAC: 68, SHO: 40, PAS: 60, DRI: 54, DEF: 82, PHY: 80 },
-  DFCd: { PAC: 68, SHO: 40, PAS: 60, DRI: 54, DEF: 82, PHY: 80 },
-  LTI:  { PAC: 82, SHO: 55, PAS: 70, DRI: 70, DEF: 72, PHY: 74 },
-  LTD:  { PAC: 82, SHO: 55, PAS: 70, DRI: 70, DEF: 72, PHY: 74 },
-  MDC:  { PAC: 70, SHO: 52, PAS: 76, DRI: 64, DEF: 78, PHY: 80 },
-  MC:   { PAC: 74, SHO: 65, PAS: 82, DRI: 74, DEF: 62, PHY: 72 },
-  MOC:  { PAC: 76, SHO: 74, PAS: 82, DRI: 80, DEF: 44, PHY: 64 },
-  MCI:  { PAC: 80, SHO: 68, PAS: 78, DRI: 78, DEF: 52, PHY: 66 },
-  MCD:  { PAC: 80, SHO: 68, PAS: 78, DRI: 78, DEF: 52, PHY: 66 },
-  DC:   { PAC: 80, SHO: 86, PAS: 66, DRI: 78, DEF: 32, PHY: 76 },
-  EXI:  { PAC: 90, SHO: 78, PAS: 70, DRI: 86, DEF: 30, PHY: 66 },
-  EXD:  { PAC: 90, SHO: 78, PAS: 70, DRI: 86, DEF: 30, PHY: 66 },
-  SD:   { PAC: 78, SHO: 80, PAS: 74, DRI: 76, DEF: 40, PHY: 68 },
-};
 
-/* Card rarity tier by overall */
-function getCardTier(overall) {
-  if (overall >= 85) return 'elite';
-  if (overall >= 75) return 'gold';
-  if (overall >= 65) return 'silver';
-  return 'bronze';
-}
+export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMvpId = null }) {
+  const [showForm, setShowForm]       = useState(false);
+  const [editId, setEditId]           = useState(null);
+  const [nombre, setNombre]           = useState('');
+  const [posiciones, setPosiciones]   = useState(['DC']);
+  const [cardVariant, setCardVariant] = useState(null);
+  const [editStats, setEditStats]     = useState(() => Object.fromEntries(STAT_KEYS.map(k => [k, 75])));
+  const [revealId, setRevealId]       = useState(null);
+  const [confirmarEliminar, setConfirmarEliminar] = useState(null); // holds the jugador to delete
 
-export default function Jugadores({ jugadores, isAdmin }) {
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId]     = useState(null);
-  const [nombre, setNombre]     = useState('');
-  const [posicion, setPosicion] = useState('DC');
-  const [revealId, setRevealId] = useState(null);
+  const totalUsado = STAT_KEYS.reduce((s, k) => s + editStats[k], 0);
+  const ptsLibres  = STAT_BUDGET - totalUsado;
+  const budgetColor = ptsLibres === 0 ? '#ef4444' : ptsLibres <= 10 ? '#f59e0b' : '#10b981';
+
+  function setStat(key, delta) {
+    setEditStats(prev => {
+      const cur    = prev[key];
+      const newVal = Math.max(STAT_MIN, Math.min(STAT_MAX, cur + delta));
+      const diff   = newVal - cur;
+      if (diff > 0 && ptsLibres < diff) return prev;
+      return { ...prev, [key]: newVal };
+    });
+  }
+
+  function setStatSlider(key, val) {
+    const newVal = Number(val);
+    const diff   = newVal - editStats[key];
+    if (diff > 0 && ptsLibres < diff) return;
+    setEditStats(prev => ({ ...prev, [key]: newVal }));
+  }
+
+  function togglePosicion(p) {
+    setPosiciones(prev => {
+      if (prev.includes(p)) {
+        if (prev.length === 1) return prev;
+        return prev.filter(pos => pos !== p);
+      }
+      if (prev.length >= 3) return prev;
+      return [...prev, p];
+    });
+  }
 
   function openNew() {
-    setEditId(null); setNombre(''); setPosicion('DC'); setShowForm(true);
+    setEditId(null); setNombre(''); setPosiciones(['DC']);
+    setCardVariant(null);
+    setEditStats(Object.fromEntries(STAT_KEYS.map(k => [k, 75])));
+    setShowForm(true);
   }
 
   function openEdit(j) {
-    setEditId(j.id); setNombre(j.nombre); setPosicion(j.posicion); setShowForm(true);
+    setEditId(j.id); setNombre(j.nombre);
+    setPosiciones([j.posicion, ...(j.posicionesAlt ?? [])]);
+    setCardVariant(j.cardVariant ?? null);
+    const computed = calcStats(j);
+    setEditStats(Object.fromEntries(STAT_KEYS.map(k => [k, computed[k]])));
+    setShowForm(true);
   }
 
   async function guardar() {
     if (!nombre.trim()) return;
     if (editId) {
-      await updateDoc(doc(db, 'jugadores', editId), { nombre: nombre.trim(), posicion });
+      await updateDoc(doc(db, 'jugadores', editId), {
+        nombre: nombre.trim(),
+        posicion: posiciones[0],
+        posicionesAlt: posiciones.slice(1),
+        ...editStats,
+        cardVariant: cardVariant ?? null,
+      });
     } else {
       await addDoc(collection(db, 'jugadores'), {
-        nombre: nombre.trim(), posicion, activo: true, createdAt: serverTimestamp(),
+        nombre: nombre.trim(),
+        posicion: posiciones[0],
+        posicionesAlt: posiciones.slice(1),
+        activo: true, createdAt: serverTimestamp(),
       });
     }
     setShowForm(false);
@@ -78,8 +96,13 @@ export default function Jugadores({ jugadores, isAdmin }) {
   }
 
   async function eliminarJugador(j) {
-    if (!window.confirm(`¿Eliminar a ${j.nombre} permanentemente?`)) return;
-    await deleteDoc(doc(db, 'jugadores', j.id));
+    setConfirmarEliminar(j);
+  }
+
+  async function confirmarEliminarJugador() {
+    if (!confirmarEliminar) return;
+    await deleteDoc(doc(db, 'jugadores', confirmarEliminar.id));
+    setConfirmarEliminar(null);
   }
 
   const activos   = jugadores.filter(j => j.activo !== false);
@@ -116,6 +139,8 @@ export default function Jugadores({ jugadores, isAdmin }) {
               <FutCard
                 key={j.id}
                 j={j}
+                racha={rachasMap[j.id] ?? 0}
+                isMvp={weeklyMvpId === j.id}
                 onEdit={openEdit}
                 onToggle={toggleActivo}
                 onEliminar={isAdmin ? eliminarJugador : null}
@@ -136,6 +161,8 @@ export default function Jugadores({ jugadores, isAdmin }) {
               <FutCard
                 key={j.id}
                 j={j}
+                racha={rachasMap[j.id] ?? 0}
+                isMvp={weeklyMvpId === j.id}
                 onEdit={openEdit}
                 onToggle={toggleActivo}
                 onEliminar={isAdmin ? eliminarJugador : null}
@@ -146,6 +173,36 @@ export default function Jugadores({ jugadores, isAdmin }) {
             ))}
           </div>
         </>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmarEliminar && createPortal(
+        <div className="overlay" style={{ alignItems: 'center', padding: '0 12px' }} onClick={() => setConfirmarEliminar(null)}>
+          <div className="modal" style={{ borderRadius: 16, maxWidth: 320 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-title" style={{ color: '#ef4444' }}>
+              Eliminar jugador
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 20, lineHeight: 1.5 }}>
+              ¿Eliminar a <strong style={{ color: 'var(--text)' }}>{confirmarEliminar.nombre}</strong> permanentemente? Esta acción no se puede deshacer.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-outline btn-full"
+                onClick={() => setConfirmarEliminar(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-full"
+                onClick={confirmarEliminarJugador}
+                style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#ef4444' }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Add / Edit modal */}
@@ -171,24 +228,34 @@ export default function Jugadores({ jugadores, isAdmin }) {
 
             <div className="form-group">
               <label className="form-label">Posición preferida</label>
+              <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani', letterSpacing: 0.5, marginBottom: 6 }}>
+                Toca para seleccionar — primera = principal, hasta 3 posiciones
+              </div>
               <div className="pos-grouped-selector">
-                {POSICION_GRUPOS.map(({ grupo, posiciones }) => (
+                {POSICION_GRUPOS.map(({ grupo, posiciones: posPorGrupo }) => (
                   <div key={grupo} className="pos-group-block">
                     <div className="pos-group-title">{grupo}</div>
                     <div className="pos-group-row">
-                      {posiciones.map(p => {
+                      {posPorGrupo.map(p => {
                         const cfg = POSICION_DETALLADA[p];
-                        const sel = posicion === p;
+                        const selIdx = posiciones.indexOf(p);
+                        const isPrimary = selIdx === 0;
+                        const isAlt = selIdx > 0;
                         return (
                           <button
                             key={p}
-                            className={`pos-detail-btn ${sel ? 'selected' : ''}`}
-                            onClick={() => setPosicion(p)}
+                            className={`pos-detail-btn ${selIdx !== -1 ? 'selected' : ''}`}
+                            onClick={() => togglePosicion(p)}
                             title={cfg.nombre}
-                            style={sel ? {
+                            style={isPrimary ? {
                               borderColor: cfg.color,
                               color: cfg.color,
                               background: cfg.bg,
+                            } : isAlt ? {
+                              borderColor: `${cfg.color}66`,
+                              color: `${cfg.color}99`,
+                              background: cfg.bg,
+                              opacity: 0.75,
                             } : {}}
                           >
                             <span className="pos-detail-code">{p}</span>
@@ -199,17 +266,137 @@ export default function Jugadores({ jugadores, isAdmin }) {
                   </div>
                 ))}
               </div>
-              {/* Show selected position name */}
-              {posicion && POSICION_DETALLADA[posicion] && (
+              {/* Selected positions display */}
+              {posiciones.length > 0 && (
                 <div style={{
-                  marginTop: 8, fontSize: 11, color: POSICION_DETALLADA[posicion].color,
-                  fontFamily: 'Rajdhani', fontWeight: 700, letterSpacing: 1,
-                  textAlign: 'center', textTransform: 'uppercase',
+                  marginTop: 8, fontFamily: 'Rajdhani', fontWeight: 700,
+                  letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase',
+                  display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap',
                 }}>
-                  {POSICION_DETALLADA[posicion].nombre}
+                  {posiciones.map((p, i) => (
+                    <span key={p} style={{
+                      fontSize: 11,
+                      color: i === 0 ? POSICION_DETALLADA[p]?.color : 'var(--text3)',
+                    }}>
+                      {i === 0 ? '★ ' : '· '}{POSICION_DETALLADA[p]?.nombre}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
+
+            {/* Stats editor — only when editing an existing player */}
+            {editId && (
+              <div className="form-group">
+                <label className="form-label">Stats de la tarjeta</label>
+
+                {/* Budget bar */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
+                      Presupuesto
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: budgetColor, fontFamily: 'Rajdhani, sans-serif' }}>
+                      {totalUsado} / {STAT_BUDGET}
+                      {ptsLibres > 0
+                        ? <span style={{ color: 'var(--text3)', fontWeight: 400 }}> · {ptsLibres} libres</span>
+                        : <span style={{ color: '#ef4444' }}> · ¡Lleno!</span>}
+                    </span>
+                  </div>
+                  <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 3,
+                      width: `${(totalUsado / STAT_BUDGET) * 100}%`,
+                      background: budgetColor,
+                      transition: 'width 0.15s, background 0.2s',
+                    }} />
+                  </div>
+                </div>
+
+                {STAT_KEYS.map(key => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, flexShrink: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1 }}>
+                        {STAT_LABELS[key]}
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif' }}>
+                        {STAT_NAMES[key]}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setStat(key, -1)}
+                      disabled={editStats[key] <= STAT_MIN}
+                      style={{
+                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                        border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)',
+                        color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: editStats[key] <= STAT_MIN ? 0.3 : 1,
+                      }}
+                    >−</button>
+                    <input
+                      type="range" min={STAT_MIN} max={STAT_MAX}
+                      value={editStats[key]}
+                      onChange={e => setStatSlider(key, e.target.value)}
+                      style={{ flex: 1, accentColor: 'var(--gold)', height: 4 }}
+                    />
+                    <button
+                      onClick={() => setStat(key, 1)}
+                      disabled={ptsLibres === 0 || editStats[key] >= STAT_MAX}
+                      style={{
+                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                        border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)',
+                        color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: (ptsLibres === 0 || editStats[key] >= STAT_MAX) ? 0.3 : 1,
+                      }}
+                    >+</button>
+                    <div style={{
+                      width: 32, textAlign: 'right', flexShrink: 0,
+                      fontSize: 18, fontWeight: 700, fontFamily: 'Rajdhani, sans-serif',
+                      color: editStats[key] >= 85 ? '#f0c040' : editStats[key] >= 70 ? 'var(--text)' : 'var(--text3)',
+                    }}>
+                      {editStats[key]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Admin: special card variant */}
+            {isAdmin && editId && (
+              <div className="form-group">
+                <label className="form-label">Tarjeta especial</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { value: null,   label: 'Normal',  desc: 'Estándar',     color: 'var(--text3)' },
+                    { value: 'toty', label: '🏆 TOTY',  desc: 'Team of Year', color: '#60a5fa' },
+                  ].map(opt => {
+                    const sel = cardVariant === opt.value;
+                    return (
+                      <button
+                        key={String(opt.value)}
+                        onClick={() => setCardVariant(opt.value)}
+                        style={{
+                          flex: 1, padding: '8px 4px', borderRadius: 8,
+                          border: `1.5px solid ${sel ? opt.color : 'rgba(255,255,255,0.1)'}`,
+                          background: sel ? `${opt.color}18` : 'rgba(255,255,255,0.03)',
+                          cursor: 'pointer',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, fontWeight: 700, color: sel ? opt.color : 'var(--text2)', fontFamily: 'Rajdhani', letterSpacing: 0.5 }}>
+                          {opt.label}
+                        </span>
+                        <span style={{ fontSize: 8, color: 'var(--text3)', fontFamily: 'Rajdhani' }}>
+                          {opt.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <button className="btn btn-gold btn-full" onClick={guardar} style={{ marginTop: 4 }}>
               {editId ? 'Guardar cambios' : 'Agregar jugador'}
@@ -222,11 +409,12 @@ export default function Jugadores({ jugadores, isAdmin }) {
   );
 }
 
-function FutCard({ j, onEdit, onToggle, onEliminar, revealed, onReveal, animDelay }) {
+function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onReveal, animDelay }) {
   const cfg     = getPosicionConfig(j.posicion);
-  const overall = POS_OVERALL[j.posicion] ?? POS_OVERALL[getCategoriaBase(j.posicion)] ?? 72;
-  const stats   = POS_STATS[j.posicion] ?? POS_STATS[getCategoriaBase(j.posicion)] ?? POS_STATS.defensa;
-  const tier    = getCardTier(overall);
+  const overall = getRating(j);
+  const { pac, tir, pas, reg, def, fis } = calcStats(j);
+  const stats = { PAC: pac, TIR: tir, PAS: pas, REG: reg, DEF: def, FIS: fis };
+  const tier    = isMvp ? 'inform' : (j.cardVariant ?? getCardTier(overall));
   const inactive = j.activo === false;
 
   const shortName = (() => {
@@ -242,12 +430,28 @@ function FutCard({ j, onEdit, onToggle, onEliminar, revealed, onReveal, animDela
       style={{ animationDelay: `${animDelay}ms` }}
       onClick={onReveal}
     >
+      {racha >= 2 && (
+        <div style={{
+          position: 'absolute', top: 5, right: 5, zIndex: 3,
+          display: 'flex', alignItems: 'center', gap: 1,
+          fontSize: 8, fontWeight: 800, fontFamily: 'Rajdhani',
+          color: '#f97316', lineHeight: 1,
+          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.7))',
+        }}>
+          🔥{racha}
+        </div>
+      )}
       <div className="fut-card-inner">
         {/* Top row: overall + pos + flag */}
         <div className="fut-card-top">
           <div>
             <div className="fut-card-overall">{overall}</div>
             <div className="fut-card-pos">{cfg.label}</div>
+            {(j.posicionesAlt ?? []).length > 0 && (
+              <div style={{ fontSize: 6, color: 'rgba(255,255,255,0.5)', fontFamily: 'Rajdhani', letterSpacing: 0.3, lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+                {j.posicionesAlt.map(p => getPosicionLabel(p)).join('·')}
+              </div>
+            )}
           </div>
           <div className="fut-card-flag">⚽</div>
         </div>
@@ -289,10 +493,16 @@ function FutCard({ j, onEdit, onToggle, onEliminar, revealed, onReveal, animDela
             Editar
           </button>
           <button
-            className={`fut-card-action-btn ${j.activo !== false ? 'active' : ''}`}
+            className={`fut-card-toggle ${j.activo !== false ? 'on' : 'off'}`}
             onClick={e => { e.stopPropagation(); onToggle(j); }}
+            title={j.activo !== false ? 'Marcar como inactivo' : 'Reactivar jugador'}
           >
-            {j.activo !== false ? 'Activo' : 'Inactivo'}
+            <span className="fut-card-toggle-track">
+              <span className="fut-card-toggle-thumb" />
+            </span>
+            <span className="fut-card-toggle-label">
+              {j.activo !== false ? 'Activo' : 'Baja'}
+            </span>
           </button>
           {onEliminar && (
             <button

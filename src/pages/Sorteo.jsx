@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { createPortal } from 'react-dom';
+import { doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   getWeekId, getShortName, getInitials, distribuirEquipos,
@@ -13,13 +14,17 @@ function getFormatoPartido(sizeA, sizeB) {
   return `${sizeA} VS ${sizeB}`;
 }
 
-export default function Sorteo({ jugadores, partido, jugadorActual }) {
-  const [animating, setAnimating]       = useState(false);
-  const [justRevealed, setJustRevealed] = useState(false);
-  const [formacionA, setFormacionA]     = useState(null);
-  const [formacionB, setFormacionB]     = useState(null);
-  const [formatoSel, setFormatoSel]     = useState(null);
-  const [sorteoView, setSorteoView]     = useState('cancha'); // 'cancha' | 'equipos'
+export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
+  const [animating, setAnimating]           = useState(false);
+  const [justRevealed, setJustRevealed]     = useState(false);
+  const [formacionA, setFormacionA]         = useState(null);
+  const [formacionB, setFormacionB]         = useState(null);
+  const [formatoSel, setFormatoSel]         = useState(null);
+  const [sorteoView, setSorteoView]         = useState('cancha'); // 'cancha' | 'equipos'
+  const [cerrandoPartido, setCerrandoPartido] = useState(false);
+  const [pickerEquipo, setPickerEquipo]       = useState(null); // null | 'A' | 'B'
+
+  const puedeActuar = isAdmin || (jugadorActual && ([...((partido?.equipoA) ?? []), ...((partido?.equipoB) ?? [])]).includes(jugadorActual.id));
 
   const confirmados = (partido?.convocados ?? []).filter(c => c.estado === 'confirmado');
   const jugadoresConfirmados = confirmados.map(c =>
@@ -73,6 +78,36 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
     }, 2000);
   }
 
+  async function iniciarPartido() {
+    await updateDoc(doc(db, 'partidos', getWeekId()), {
+      iniciado: true,
+      marcadorVivo: { golesA: 0, golesB: 0, goleadores: [] },
+    });
+  }
+
+  async function registrarGol(equipo, jugadorId, nombre) {
+    const current = partido?.marcadorVivo?.goleadores ?? [];
+    const nuevo = [...current, { equipo, jugadorId, nombre }];
+    await updateDoc(doc(db, 'partidos', getWeekId()), {
+      'marcadorVivo.goleadores': nuevo,
+      'marcadorVivo.golesA': nuevo.filter(g => g.equipo === 'A').length,
+      'marcadorVivo.golesB': nuevo.filter(g => g.equipo === 'B').length,
+    });
+    setPickerEquipo(null);
+  }
+
+  async function deshacerGol(equipo) {
+    const current = partido?.marcadorVivo?.goleadores ?? [];
+    const idx = [...current].map((g, i) => ({ ...g, i })).reverse().find(g => g.equipo === equipo)?.i;
+    if (idx === undefined) return;
+    const nuevo = current.filter((_, i) => i !== idx);
+    await updateDoc(doc(db, 'partidos', getWeekId()), {
+      'marcadorVivo.goleadores': nuevo,
+      'marcadorVivo.golesA': nuevo.filter(g => g.equipo === 'A').length,
+      'marcadorVivo.golesB': nuevo.filter(g => g.equipo === 'B').length,
+    });
+  }
+
   async function cambiarFormacion(equipo, nueva) {
     if (equipo === 'A') setFormacionA(nueva);
     else setFormacionB(nueva);
@@ -116,11 +151,6 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
 
           {jugadoresConfirmados.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-              {sorteoHecho && (
-                <button className="btn btn-outline btn-sm" onClick={hacerSorteo} disabled={animating}>
-                  Repetir
-                </button>
-              )}
               <button
                 className={`btn btn-gold ${animating ? 'pulse-gold' : ''}`}
                 onClick={hacerSorteo}
@@ -346,7 +376,140 @@ export default function Sorteo({ jugadores, partido, jugadorActual }) {
               })}
             </div>
           )}
+
+          {/* Iniciar partido */}
+          {puedeActuar && !partido?.iniciado && !partido?.cerrado && (
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+              <button
+                className="btn btn-gold"
+                onClick={iniciarPartido}
+                style={{ fontSize: 13, letterSpacing: 1, padding: '10px 32px' }}
+              >
+                ▶ Iniciar partido
+              </button>
+            </div>
+          )}
+
+          {/* Marcador en vivo */}
+          {partido?.iniciado && !partido?.cerrado && (() => {
+            const goleadores = partido.marcadorVivo?.goleadores ?? [];
+            const golesA = partido.marcadorVivo?.golesA ?? 0;
+            const golesB = partido.marcadorVivo?.golesB ?? 0;
+            return (
+              <div className="week-card" style={{ marginTop: 20, padding: '16px' }}>
+                {/* LIVE indicator */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 18 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'pulse-gold 1.5s ease infinite', boxShadow: '0 0 8px #10b981' }} />
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: '#10b981', fontFamily: 'Rajdhani', textTransform: 'uppercase' }}>En vivo</span>
+                </div>
+
+                {/* Score */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {/* Azul */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#90caf9', fontFamily: 'Rajdhani', letterSpacing: 1 }}>🔵 AZUL</div>
+                    <div style={{ fontSize: 60, fontWeight: 400, fontFamily: 'Bebas Neue, Rajdhani', color: '#90caf9', lineHeight: 1 }}>{golesA}</div>
+                    {puedeActuar && (
+                      <div style={{ display: 'flex', gap: 6, width: '100%', justifyContent: 'center' }}>
+                        <button onClick={() => deshacerGol('A')} disabled={golesA === 0} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(144,202,249,0.3)', background: 'rgba(144,202,249,0.06)', color: '#90caf9', fontSize: 18, cursor: 'pointer', opacity: golesA === 0 ? 0.3 : 1 }}>−</button>
+                        <button onClick={() => setPickerEquipo(pickerEquipo === 'A' ? null : 'A')} style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${pickerEquipo === 'A' ? 'rgba(144,202,249,0.9)' : 'rgba(144,202,249,0.6)'}`, background: pickerEquipo === 'A' ? 'rgba(144,202,249,0.22)' : 'rgba(144,202,249,0.12)', color: '#90caf9', fontSize: 12, fontWeight: 700, fontFamily: 'Rajdhani', letterSpacing: 1, cursor: 'pointer' }}>+ GOL</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: 28, color: 'var(--text3)', fontFamily: 'Bebas Neue, Rajdhani', paddingBottom: 20 }}>—</div>
+
+                  {/* Rojo */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#fca5a5', fontFamily: 'Rajdhani', letterSpacing: 1 }}>🔴 ROJO</div>
+                    <div style={{ fontSize: 60, fontWeight: 400, fontFamily: 'Bebas Neue, Rajdhani', color: '#fca5a5', lineHeight: 1 }}>{golesB}</div>
+                    {puedeActuar && (
+                      <div style={{ display: 'flex', gap: 6, width: '100%', justifyContent: 'center' }}>
+                        <button onClick={() => deshacerGol('B')} disabled={golesB === 0} style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid rgba(252,165,165,0.3)', background: 'rgba(252,165,165,0.06)', color: '#fca5a5', fontSize: 18, cursor: 'pointer', opacity: golesB === 0 ? 0.3 : 1 }}>−</button>
+                        <button onClick={() => setPickerEquipo(pickerEquipo === 'B' ? null : 'B')} style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${pickerEquipo === 'B' ? 'rgba(252,165,165,0.9)' : 'rgba(252,165,165,0.6)'}`, background: pickerEquipo === 'B' ? 'rgba(252,165,165,0.22)' : 'rgba(252,165,165,0.12)', color: '#fca5a5', fontSize: 12, fontWeight: 700, fontFamily: 'Rajdhani', letterSpacing: 1, cursor: 'pointer' }}>+ GOL</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Picker de goleador */}
+                {pickerEquipo && puedeActuar && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani', letterSpacing: 1.5, textAlign: 'center', marginBottom: 10, textTransform: 'uppercase' }}>
+                      ¿Quién metió el gol? — {pickerEquipo === 'A' ? 'Azul' : 'Rojo'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                      {(pickerEquipo === 'A' ? equipoA : equipoB).map(j => (
+                        <button
+                          key={j.id}
+                          onClick={() => registrarGol(pickerEquipo, j.id, j.nombre)}
+                          style={{
+                            padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
+                            border: `1px solid ${pickerEquipo === 'A' ? 'rgba(144,202,249,0.4)' : 'rgba(252,165,165,0.4)'}`,
+                            background: pickerEquipo === 'A' ? 'rgba(144,202,249,0.08)' : 'rgba(252,165,165,0.08)',
+                            color: pickerEquipo === 'A' ? '#90caf9' : '#fca5a5',
+                            fontSize: 13, fontWeight: 600,
+                          }}
+                        >
+                          {j.nombre.split(' ')[0]}
+                        </button>
+                      ))}
+                      <button onClick={() => setPickerEquipo(null)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text3)', fontSize: 12, cursor: 'pointer' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Log de goles */}
+                {goleadores.length > 0 && (
+                  <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 5, justifyContent: 'center' }}>
+                    {goleadores.map((g, i) => (
+                      <span key={i} style={{
+                        fontSize: 10, fontFamily: 'Rajdhani', fontWeight: 700, letterSpacing: 0.5,
+                        color: g.equipo === 'A' ? '#90caf9' : '#fca5a5',
+                        background: g.equipo === 'A' ? 'rgba(144,202,249,0.08)' : 'rgba(252,165,165,0.08)',
+                        border: `1px solid ${g.equipo === 'A' ? 'rgba(144,202,249,0.2)' : 'rgba(252,165,165,0.2)'}`,
+                        borderRadius: 6, padding: '3px 8px',
+                      }}>
+                        ⚽ {g.nombre.split(' ')[0]}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Cerrar partido */}
+                {puedeActuar && (
+                  <div style={{ marginTop: 20, textAlign: 'center' }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => setCerrandoPartido(true)} style={{ fontSize: 11, letterSpacing: 1, padding: '7px 20px' }}>
+                      🔒 Cerrar partido
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {partido?.cerrado && (
+            <div style={{
+              marginTop: 16, textAlign: 'center',
+              fontSize: 9, fontWeight: 700, letterSpacing: 2,
+              color: 'var(--text3)', fontFamily: 'Rajdhani', textTransform: 'uppercase',
+            }}>
+              ✓ Partido cerrado
+            </div>
+          )}
         </div>
+      )}
+
+      {cerrandoPartido && createPortal(
+        <CerrarPartidoModal
+          jugadoresDelPartido={[...equipoA, ...equipoB]}
+          onClose={() => setCerrandoPartido(false)}
+          weekId={getWeekId()}
+          marcadorVivo={partido?.marcadorVivo}
+        />,
+        document.body
       )}
 
       <div style={{ height: 24 }} />
@@ -500,6 +663,167 @@ function PlayerToken({ player, team, delay, esYo }) {
       </div>
       <div className={`field-player-name ${esYo ? 'field-player-yo-name' : ''}`}>
         {getShortName(player.nombre)}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CerrarPartidoModal — admin picks result + scorers + MVP
+   ───────────────────────────────────────────────────────────── */
+function CerrarPartidoModal({ jugadoresDelPartido, onClose, weekId, marcadorVivo }) {
+  const [golesA, setGolesA]   = useState(marcadorVivo?.golesA ?? 0);
+  const [golesB, setGolesB]   = useState(marcadorVivo?.golesB ?? 0);
+  const [golesMap, setGolesMap] = useState(() => {
+    const map = {};
+    (marcadorVivo?.goleadores ?? []).forEach(g => {
+      map[g.jugadorId] = (map[g.jugadorId] ?? 0) + 1;
+    });
+    return map;
+  });
+  const [guardando, setGuardando] = useState(false);
+
+  const totalGoles = Object.values(golesMap).reduce((s, v) => s + v, 0);
+
+  function incGol(id) {
+    setGolesMap(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+  }
+
+  function decGol(id) {
+    setGolesMap(prev => {
+      const cur = prev[id] ?? 0;
+      if (cur <= 0) return prev;
+      return { ...prev, [id]: cur - 1 };
+    });
+  }
+
+  async function cerrar() {
+    if (guardando) return;
+    setGuardando(true);
+    try {
+      const goleadores = jugadoresDelPartido
+        .filter(j => (golesMap[j.id] ?? 0) > 0)
+        .map(j => ({ jugadorId: j.id, nombre: j.nombre, goles: golesMap[j.id] }));
+      await updateDoc(doc(db, 'partidos', weekId), {
+        resultado: { golesA, golesB },
+        goleadores,
+        cerrado: true,
+      });
+      onClose();
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="overlay" style={{ alignItems: 'center', padding: '0 12px' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ borderRadius: 16, maxHeight: '92dvh', overflowY: 'auto' }}>
+        <div className="modal-title">
+          Cerrar Partido
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Score */}
+        <div className="form-group">
+          <label className="form-label" style={{ marginBottom: 10 }}>Resultado</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            {[['Azul', '#90caf9', golesA, setGolesA], ['Rojo', '#fca5a5', golesB, setGolesB]].map(([name, color, val, setter]) => (
+              <div key={name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: 'Rajdhani', letterSpacing: 1 }}>{name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    onClick={() => setter(v => Math.max(0, v - 1))}
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.05)', color: 'var(--text2)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >−</button>
+                  <div style={{
+                    fontSize: 34, fontWeight: 700, fontFamily: 'Bebas Neue, Rajdhani',
+                    color, width: 40, textAlign: 'center', lineHeight: 1,
+                  }}>
+                    {val}
+                  </div>
+                  <button
+                    onClick={() => setter(v => v + 1)}
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.05)', color: 'var(--text2)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Scorers */}
+        <div className="form-group">
+          <label className="form-label" style={{ marginBottom: 4 }}>
+            Goleadores
+            {totalGoles > 0 && (
+              <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 400, marginLeft: 6 }}>
+                {totalGoles} gol{totalGoles !== 1 ? 'es' : ''} asignado{totalGoles !== 1 ? 's' : ''}
+              </span>
+            )}
+          </label>
+          <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani', marginBottom: 10, letterSpacing: 0.5 }}>
+            Toca + para asignar goles a cada jugador
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {jugadoresDelPartido.map(j => {
+              const goles = golesMap[j.id] ?? 0;
+              return (
+                <div key={j.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: goles > 0 ? 'rgba(16,185,129,0.07)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${goles > 0 ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius: 8, padding: '8px 10px',
+                }}>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: goles > 0 ? 700 : 500, color: goles > 0 ? 'var(--text)' : 'var(--text2)' }}>
+                    {j.nombre}
+                  </span>
+                  <button
+                    onClick={() => decGol(j.id)}
+                    disabled={goles <= 0}
+                    style={{
+                      width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)',
+                      background: 'rgba(255,255,255,0.04)', color: 'var(--text2)', cursor: 'pointer',
+                      fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: goles <= 0 ? 0.3 : 1,
+                    }}
+                  >−</button>
+                  <div style={{
+                    width: 28, textAlign: 'center', fontSize: goles > 0 ? 18 : 13,
+                    fontWeight: 700, fontFamily: 'Rajdhani',
+                    color: goles > 0 ? '#10b981' : 'var(--text3)',
+                  }}>
+                    {goles > 0 ? goles : '—'}
+                  </div>
+                  <button
+                    onClick={() => incGol(j.id)}
+                    style={{
+                      width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(255,255,255,0.12)',
+                      background: 'rgba(255,255,255,0.04)', color: 'var(--text2)', cursor: 'pointer',
+                      fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >+</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button className="btn btn-outline btn-full" onClick={onClose} disabled={guardando}>Cancelar</button>
+          <button
+            className="btn btn-gold btn-full"
+            onClick={cerrar}
+            disabled={guardando}
+          >
+            {guardando ? 'Guardando...' : '🔒 Cerrar partido'}
+          </button>
+        </div>
       </div>
     </div>
   );

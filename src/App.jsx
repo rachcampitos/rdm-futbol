@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, doc, onSnapshot, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, orderBy, updateDoc, limit } from 'firebase/firestore';
 import { db } from './firebase';
-import { getWeekId, POSICION_GRUPOS, POSICION_DETALLADA } from './utils';
+import { getWeekId, POSICION_GRUPOS, POSICION_DETALLADA, calcStats } from './utils';
 import EstasSemana from './pages/EstasSemana';
 import Jugadores from './pages/Jugadores';
 import Sorteo from './pages/Sorteo';
 import Penaltis from './pages/Penaltis';
+import Historial from './pages/Historial';
 import Onboarding, { StickerCard } from './components/Onboarding';
 import song1  from './assets/music/FIFA 2002 Soundtrack - Gorillaz - 19-2000 Soulchild Remix.wmv.mp3';
 import song2  from './assets/music/FIFA 98 OST - Busy Child (The Crystal Method).mp3';
@@ -101,6 +102,11 @@ function useAudioPlayer() {
 
     loadSong(songIdxRef.current);
 
+    // Don't autoplay if user previously paused
+    if (localStorage.getItem('rdm_music_paused') === '1') {
+      return () => { audio.pause(); audio.src = ''; };
+    }
+
     // Try normal autoplay first
     audio.play()
       .then(() => { setPlaying(true); setStarted(true); })
@@ -139,9 +145,11 @@ function useAudioPlayer() {
     if (!audio) return;
     if (audio.paused) {
       audio.play().then(() => { setPlaying(true); setStarted(true); });
+      localStorage.removeItem('rdm_music_paused');
     } else {
       audio.pause();
       setPlaying(false);
+      localStorage.setItem('rdm_music_paused', '1');
     }
   }, []);
 
@@ -168,8 +176,8 @@ function useAudioPlayer() {
   return { playing, started, toggle, prevSong, nextSong, songName };
 }
 
-/* ── Music bar — modern design ── */
-function MusicBar({ playing, started, songName, onToggle, onPrev, onNext }) {
+/* ── Music strip — compact header band ── */
+function MusicStrip({ playing, started, songName, onToggle, onNext }) {
   const [displayName, setDisplayName] = useState(songName);
   const [nameVisible, setNameVisible] = useState(true);
   const timerRef = useRef(null);
@@ -184,105 +192,90 @@ function MusicBar({ playing, started, songName, onToggle, onPrev, onNext }) {
     return () => clearTimeout(timerRef.current);
   }, [songName]);
 
-  const ctrlBtn = (onClick, label, title, large = false) => (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        width: large ? 38 : 30,
-        height: large ? 38 : 30,
-        borderRadius: large ? 10 : 8,
-        border: large
-          ? `1.5px solid ${playing ? 'rgba(240,192,64,0.7)' : 'rgba(255,255,255,0.25)'}`
-          : '1px solid rgba(255,255,255,0.12)',
-        background: large
-          ? (playing ? 'rgba(240,192,64,0.18)' : 'rgba(255,255,255,0.06)')
-          : 'rgba(255,255,255,0.04)',
-        color: large ? (playing ? 'var(--gold)' : 'var(--text2)') : 'var(--text3)',
-        cursor: 'pointer',
-        fontSize: large ? 16 : 13,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 0.18s',
-        flexShrink: 0,
-        animation: large && !started ? 'pulse-gold 1.5s ease infinite' : 'none',
-      }}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '100%',
-      maxWidth: 480,
-      height: 58,
-      zIndex: 300,
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
       padding: '0 14px',
-      background: 'rgba(4,13,33,0.96)',
-      backdropFilter: 'blur(18px)',
-      WebkitBackdropFilter: 'blur(18px)',
-      borderTop: '1px solid rgba(240,192,64,0.35)',
-      boxShadow: '0 -8px 28px rgba(0,0,0,0.8)',
+      height: 30,
+      background: 'rgba(240,192,64,0.06)',
+      borderTop: '1px solid rgba(240,192,64,0.18)',
+      borderBottom: '1px solid rgba(240,192,64,0.18)',
       boxSizing: 'border-box',
     }}>
 
-      {/* Equalizer / disc */}
-      <div style={{ width: 30, height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Equalizer / note icon */}
+      <div style={{ width: 18, height: 18, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {playing ? (
-          <div className="music-eq">
+          <div className="music-eq music-eq-sm">
             <span /><span /><span />
           </div>
         ) : (
-          <div style={{
-            width: 30, height: 30, borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, #7a5818, #2a1800)',
-            border: '1.5px solid rgba(240,192,64,0.35)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, color: 'rgba(240,192,64,0.6)',
-          }}>♪</div>
+          <span style={{ fontSize: 13, color: 'rgba(240,192,64,0.5)', lineHeight: 1 }}>♪</span>
         )}
       </div>
 
-      {/* Song info */}
-      <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-        <div style={{
-          fontSize: 8, fontWeight: 700, letterSpacing: 2,
-          color: 'var(--text3)', fontFamily: 'Rajdhani', textTransform: 'uppercase',
-          marginBottom: 1,
-        }}>
-          {playing ? '▶ EN DIRECTO' : '— PAUSADO'}
-        </div>
-        <div style={{
-          fontFamily: "'Rajdhani', sans-serif",
-          fontSize: 13, fontWeight: 700,
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          color: playing ? 'var(--gold)' : 'var(--text2)',
-          opacity: nameVisible ? 1 : 0,
-          transform: nameVisible ? 'translateY(0)' : 'translateY(4px)',
-          transition: 'opacity 0.2s ease, transform 0.2s ease',
-        }}>
-          {displayName}
-        </div>
+      {/* Song name */}
+      <div style={{
+        flex: 1, overflow: 'hidden', minWidth: 0,
+        fontFamily: "'Rajdhani', sans-serif",
+        fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        color: playing ? 'var(--gold)' : 'var(--text3)',
+        opacity: nameVisible ? 1 : 0,
+        transform: nameVisible ? 'translateY(0)' : 'translateY(3px)',
+        transition: 'opacity 0.2s ease, transform 0.2s ease',
+      }}>
+        {displayName}
       </div>
 
-      {/* Controls: ⏮ ▶/⏸ ⏭ */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-        {ctrlBtn(onPrev, '⏮', 'Anterior')}
-        {ctrlBtn(onToggle, playing ? '⏸' : '▶', playing ? 'Pausar' : 'Reproducir', true)}
-        {ctrlBtn(onNext, '⏭', 'Siguiente')}
+      {/* Controls: ▶/⏸  ⏭ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <button
+          onClick={onToggle}
+          title={playing ? 'Pausar' : 'Reproducir'}
+          style={{
+            width: 24, height: 24, borderRadius: 6,
+            border: `1px solid ${playing ? 'rgba(240,192,64,0.6)' : 'rgba(255,255,255,0.2)'}`,
+            background: playing ? 'rgba(240,192,64,0.15)' : 'rgba(255,255,255,0.05)',
+            color: playing ? 'var(--gold)' : 'var(--text2)',
+            cursor: 'pointer', fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.18s',
+            animation: !started ? 'pulse-gold 1.5s ease infinite' : 'none',
+          }}
+        >
+          {playing ? '⏸' : '▶'}
+        </button>
+        <button
+          onClick={onNext}
+          title="Siguiente"
+          style={{
+            width: 24, height: 24, borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(255,255,255,0.04)',
+            color: 'var(--text3)',
+            cursor: 'pointer', fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.18s',
+          }}
+        >
+          ⏭
+        </button>
       </div>
     </div>
   );
 }
 
 /* ── Editar Perfil Modal ── */
+const STAT_KEYS    = ['pac', 'tir', 'pas', 'reg', 'def', 'fis'];
+const STAT_LABELS  = { pac: 'PAC', tir: 'TIR', pas: 'PAS', reg: 'REG', def: 'DEF', fis: 'FIS' };
+const STAT_NAMES   = { pac: 'Velocidad', tir: 'Tiro', pas: 'Pase', reg: 'Regate', def: 'Defensa', fis: 'Físico' };
+const STAT_BUDGET  = 450;
+const STAT_MIN     = 40;
+const STAT_MAX     = 99;
+
 function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
   const [nombre,    setNombre]    = useState(jugadorActual?.nombre ?? '');
   const [posicion,  setPosicion]  = useState(jugadorActual?.posicion ?? 'DC');
@@ -291,6 +284,34 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
   const [isFlipping, setIsFlipping] = useState(false);
   const flipTimeout = useRef(null);
   const isFirstRender = useRef(true);
+
+  const [stats, setStats] = useState(() => {
+    if (!jugadorActual) return Object.fromEntries(STAT_KEYS.map(k => [k, 75]));
+    const computed = calcStats(jugadorActual);
+    return Object.fromEntries(STAT_KEYS.map(k => [k, computed[k]]));
+  });
+
+  const totalUsado  = STAT_KEYS.reduce((sum, k) => sum + stats[k], 0);
+  const ptsLibres   = STAT_BUDGET - totalUsado;
+  const budgetPct   = (totalUsado / STAT_BUDGET) * 100;
+  const budgetColor = ptsLibres === 0 ? '#ef4444' : ptsLibres <= 10 ? '#f59e0b' : '#10b981';
+
+  function setStat(key, delta) {
+    setStats(prev => {
+      const cur    = prev[key];
+      const newVal = Math.max(STAT_MIN, Math.min(STAT_MAX, cur + delta));
+      const diff   = newVal - cur;
+      if (diff > 0 && ptsLibres < diff) return prev;
+      return { ...prev, [key]: newVal };
+    });
+  }
+
+  function setStatSlider(key, val) {
+    const newVal = Number(val);
+    const diff   = newVal - stats[key];
+    if (diff > 0 && ptsLibres < diff) return;
+    setStats(prev => ({ ...prev, [key]: newVal }));
+  }
 
   // Flip card when position changes
   useEffect(() => {
@@ -306,7 +327,7 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
     if (!n) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'jugadores', jugadorActual.id), { nombre: n, posicion, capitan: esCapitan });
+      await updateDoc(doc(db, 'jugadores', jugadorActual.id), { nombre: n, posicion, capitan: esCapitan, ...stats });
       saveJugadorPersistente(jugadorActual.id, n);
       onSave({ ...jugadorActual, nombre: n, posicion });
       onClose();
@@ -385,6 +406,111 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
           </div>
         </div>
 
+        {/* Stats editor */}
+        <div className="form-group">
+          <label className="form-label">Mis stats</label>
+
+          {/* How it works info */}
+          <div style={{
+            background: 'rgba(240,192,64,0.07)',
+            border: '1px solid rgba(240,192,64,0.25)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            marginBottom: 12,
+            fontSize: 11,
+            color: 'var(--text2)',
+            lineHeight: 1.55,
+            fontFamily: 'Rajdhani, sans-serif',
+          }}>
+            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>¿Cómo funciona?</span>
+            {' '}Tienes <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{STAT_BUDGET} puntos</span> para repartir entre tus 6 atributos.
+            Si subes uno, tienes que bajar otro — igual que en FIFA.
+            Así cada jugador tiene sus propias fortalezas.
+          </div>
+
+          {/* Budget bar */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
+                Puntos usados
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: budgetColor, fontFamily: 'Rajdhani, sans-serif' }}>
+                {totalUsado} / {STAT_BUDGET}
+                {ptsLibres > 0 && <span style={{ color: 'var(--text3)', fontWeight: 400 }}> · {ptsLibres} libres</span>}
+                {ptsLibres === 0 && <span style={{ color: '#ef4444' }}> · ¡Lleno!</span>}
+              </span>
+            </div>
+            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: 3,
+                width: `${budgetPct}%`,
+                background: budgetColor,
+                transition: 'width 0.15s, background 0.2s',
+              }} />
+            </div>
+          </div>
+
+          {/* Stat rows */}
+          {STAT_KEYS.map(key => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              {/* Label */}
+              <div style={{ width: 36, flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1 }}>
+                  {STAT_LABELS[key]}
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5, fontFamily: 'Rajdhani, sans-serif' }}>
+                  {STAT_NAMES[key]}
+                </div>
+              </div>
+              {/* Minus */}
+              <button
+                onClick={() => setStat(key, -1)}
+                disabled={saving || stats[key] <= STAT_MIN}
+                style={{
+                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: stats[key] <= STAT_MIN ? 0.3 : 1,
+                }}
+              >−</button>
+              {/* Slider */}
+              <input
+                type="range"
+                min={STAT_MIN}
+                max={STAT_MAX}
+                value={stats[key]}
+                onChange={e => setStatSlider(key, e.target.value)}
+                disabled={saving}
+                style={{ flex: 1, accentColor: 'var(--gold)', height: 4 }}
+              />
+              {/* Plus */}
+              <button
+                onClick={() => setStat(key, 1)}
+                disabled={saving || ptsLibres === 0 || stats[key] >= STAT_MAX}
+                style={{
+                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: (ptsLibres === 0 || stats[key] >= STAT_MAX) ? 0.3 : 1,
+                }}
+              >+</button>
+              {/* Value */}
+              <div style={{
+                width: 32, textAlign: 'right', flexShrink: 0,
+                fontSize: 18, fontWeight: 700,
+                color: stats[key] >= 85 ? '#f0c040' : stats[key] >= 70 ? 'var(--text)' : 'var(--text3)',
+                fontFamily: 'Rajdhani, sans-serif',
+              }}>
+                {stats[key]}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Captain toggle */}
         <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
@@ -435,7 +561,6 @@ function CopiarEnlaceBtn({ jugadorId }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {
-      // Fallback for older browsers
       const el = document.createElement('textarea');
       el.value = url;
       document.body.appendChild(el);
@@ -452,15 +577,21 @@ function CopiarEnlaceBtn({ jugadorId }) {
       onClick={copiar}
       title="Copiar enlace personal"
       style={{
-        position: 'absolute', top: 12, left: 14,
-        background: 'none', border: 'none',
+        position: 'absolute', top: 10, left: 10,
+        background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)',
+        border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.12)'}`,
+        borderRadius: 8,
         color: copied ? '#10b981' : 'var(--text3)',
-        cursor: 'pointer', padding: 4,
-        fontSize: 16, lineHeight: 1,
-        transition: 'color 0.2s',
+        cursor: 'pointer',
+        padding: '4px 8px',
+        display: 'flex', alignItems: 'center', gap: 4,
+        fontSize: 10, fontFamily: 'Rajdhani, sans-serif',
+        fontWeight: 700, letterSpacing: 0.5,
+        transition: 'all 0.2s',
       }}
     >
-      {copied ? '✓' : '🔗'}
+      <span style={{ fontSize: 13 }}>{copied ? '✓' : '🔗'}</span>
+      <span>{copied ? 'Copiado' : 'Mi enlace'}</span>
     </button>
   );
 }
@@ -531,6 +662,7 @@ const TABS = [
   { id: 'roster',   icon: '👥', label: 'Roster'  },
   { id: 'sorteo',   icon: '🎲', label: 'Sorteo'  },
   { id: 'penaltis', icon: '🟨', label: 'Penaltis'},
+  { id: 'stats',    icon: '📊', label: 'Historial'},
 ];
 
 // ── Profile persistence — 3 layers ──────────────────────────────────────────
@@ -584,13 +716,14 @@ function leerJugadorLocal() {
 }
 
 export default function App() {
-  const [isAdmin, setIsAdmin]           = useState(() => checkAdmin());
-  const [jugadorLocal, setJugadorLocal] = useState(() => leerJugadorLocal());
-  const [tab, setTab]                   = useState('semana');
-  const [jugadores, setJugadores]       = useState([]);
-  const [partido, setPartido]           = useState(null);
-  const [penaltis, setPenaltis]         = useState([]);
-  const [appVisible, setAppVisible]     = useState(false);
+  const [isAdmin, setIsAdmin]               = useState(() => checkAdmin());
+  const [jugadorLocal, setJugadorLocal]     = useState(() => leerJugadorLocal());
+  const [tab, setTab]                       = useState('semana');
+  const [jugadores, setJugadores]           = useState([]);
+  const [partido, setPartido]               = useState(null);
+  const [penaltis, setPenaltis]             = useState([]);
+  const [historialPartidos, setHistorialPartidos] = useState([]);
+  const [appVisible, setAppVisible]         = useState(false);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
 
   useEffect(() => {
@@ -616,6 +749,14 @@ export default function App() {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'partidos'), orderBy('__name__', 'desc'), limit(40)),
+      snap => setHistorialPartidos(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+    return unsub;
+  }, []);
+
   // When jugadores arrive from Firestore: (1) fill missing nombre from cookie/URL restore,
   // (2) migrate existing users — set cookie if they don't have one yet
   useEffect(() => {
@@ -630,11 +771,11 @@ export default function App() {
 
   // Fade app in after onboarding or on first render when already registered
   useEffect(() => {
-    if (jugadorLocal) {
+    if (jugadorLocal || isAdmin) {
       const t = setTimeout(() => setAppVisible(true), 80);
       return () => clearTimeout(t);
     }
-  }, [jugadorLocal]);
+  }, [jugadorLocal, isAdmin]);
 
   function handleOnboardingComplete(jugador) {
     setJugadorLocal(jugador);
@@ -647,6 +788,36 @@ export default function App() {
     return jugadores.find(j => j.id === jugadorLocal.id) ?? jugadorLocal;
   }, [jugadorLocal, jugadores]);
 
+  // Weekly MVP from vote tally — only when partido is closed
+  const weeklyMvpId = useMemo(() => {
+    if (!partido?.cerrado || !partido?.mvpVotos) return null;
+    const counts = {};
+    Object.values(partido.mvpVotos).forEach(id => { counts[id] = (counts[id] ?? 0) + 1; });
+    const entries = Object.entries(counts);
+    if (!entries.length) return null;
+    return entries.sort((a, b) => b[1] - a[1])[0][0];
+  }, [partido]);
+
+  // Compute consecutive-week attendance streak per player from closed partidos
+  const rachasMap = useMemo(() => {
+    const cerrados = historialPartidos
+      .filter(p => p.cerrado)
+      .sort((a, b) => b.id.localeCompare(a.id));
+    const map = {};
+    jugadores.forEach(j => {
+      let streak = 0;
+      for (const p of cerrados) {
+        const wasConfirmed = (p.convocados ?? []).some(
+          c => c.jugadorId === j.id && c.estado === 'confirmado'
+        );
+        if (wasConfirmed) streak++;
+        else break;
+      }
+      if (streak >= 2) map[j.id] = streak;
+    });
+    return map;
+  }, [historialPartidos, jugadores]);
+
   const { playing, started, toggle, prevSong, nextSong, songName } = useAudioPlayer();
 
   // Show onboarding if no jugador registered (admin bypasses this)
@@ -655,12 +826,12 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${appVisible ? 'app-visible' : 'app-hidden'}`} style={{ paddingBottom: 60 }}>
+    <div className={`app ${appVisible ? 'app-visible' : 'app-hidden'}`}>
       <WebViewBanner />
       <header className="header">
         <div className="header-badge">
           <span className="header-badge-dot" />
-          <span className="header-badge-text">Temporada 2025</span>
+          <span className="header-badge-text">Temporada 2026</span>
         </div>
         <div className="header-title">RDM Fútbol</div>
         <div className="header-subtitle">Liga de Papás</div>
@@ -681,10 +852,14 @@ export default function App() {
             </span>
           </div>
         )}
-        <div className="header-line">
-          <div className="header-line-bar" />
-          <div className="header-line-diamond" />
-          <div className="header-line-bar" />
+        <div style={{ margin: '10px -20px -16px' }}>
+          <MusicStrip
+            playing={playing}
+            started={started}
+            songName={songName}
+            onToggle={toggle}
+            onNext={nextSong}
+          />
         </div>
         {/* Profile / Admin button — top right corner */}
         {isAdmin ? (
@@ -732,18 +907,13 @@ export default function App() {
         ))}
       </nav>
 
-      {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} />}
-      {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} />}
-      {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} />}
-      {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} />}
-      <MusicBar
-        playing={playing}
-        started={started}
-        songName={songName}
-        onToggle={toggle}
-        onPrev={prevSong}
-        onNext={nextSong}
-      />
+      <div style={{ paddingBottom: 'calc(58px + env(safe-area-inset-bottom))' }}>
+        {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} onEditarPerfil={() => setEditandoPerfil(true)} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
+        {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
+        {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} isAdmin={isAdmin} />}
+        {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} isAdmin={isAdmin} />}
+        {tab === 'stats'    && <Historial partidos={historialPartidos} jugadores={jugadores} />}
+      </div>
     </div>
   );
 }

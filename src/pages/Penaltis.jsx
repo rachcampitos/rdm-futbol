@@ -11,7 +11,7 @@ const TIPOS = [
   { value: 'otro',                label: 'Otro',                emoji: '📋' },
 ];
 
-export default function Penaltis({ jugadores, penaltis }) {
+export default function Penaltis({ jugadores, penaltis, isAdmin }) {
   const [showForm, setShowForm] = useState(false);
   const [jugadorId, setJugadorId] = useState('');
   const [tipo, setTipo] = useState('falta_injustificada');
@@ -61,6 +61,16 @@ export default function Penaltis({ jugadores, penaltis }) {
     seenIds[p.jugadorId].items.push(p);
     if (t?.esDoce) seenIds[p.jugadorId].doces += p.monto ?? 0;
   });
+
+  // All-time deuda summary per player (pending only)
+  const deudaSummary = Object.entries(seenIds)
+    .map(([id, info]) => ({
+      id,
+      nombre: info.nombre,
+      doces: info.doces,
+      count: info.items.length,
+    }))
+    .sort((a, b) => b.doces - a.doces || b.count - a.count);
 
   return (
     <div className="page">
@@ -113,7 +123,7 @@ export default function Penaltis({ jugadores, penaltis }) {
             </div>
             {/* Individual penalty cards indented */}
             <div style={{ paddingLeft: 36 }}>
-              {info.items.map(p => <PenaltiCard key={p.id} p={p} onToggle={togglePagado} />)}
+              {info.items.map(p => <PenaltiCard key={p.id} p={p} onToggle={togglePagado} showName={false} />)}
             </div>
           </div>
         );
@@ -168,14 +178,23 @@ export default function Penaltis({ jugadores, penaltis }) {
               <label className="form-label">
                 {tipoActual?.esDoce ? 'Cantidad de doces 🍺' : 'Monto (S/)'}
               </label>
-              <input
-                className="form-input"
-                type="number"
-                value={monto}
-                onChange={e => setMonto(e.target.value)}
-                placeholder={tipoActual?.esDoce ? 'Ej: 1' : 'Ej: 20'}
-                min="1"
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={monto}
+                  onChange={e => setMonto(e.target.value)}
+                  placeholder={tipoActual?.esDoce ? 'Ej: 1' : 'Ej: 20'}
+                  min="1"
+                  style={{ flex: 1 }}
+                />
+                <span style={{
+                  fontSize: 13, fontWeight: 700, fontFamily: 'Rajdhani',
+                  color: 'var(--text3)', letterSpacing: 0.5, flexShrink: 0,
+                }}>
+                  {tipoActual?.esDoce ? '🍺 doces' : 'S/'}
+                </span>
+              </div>
               {tipoActual?.esDoce && (
                 <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 4, fontFamily: 'Rajdhani' }}>
                   Falta injustificada = 1 doce de cerveza para la parrilla
@@ -209,7 +228,7 @@ export default function Penaltis({ jugadores, penaltis }) {
   );
 }
 
-function PenaltiCard({ p, onToggle }) {
+function PenaltiCard({ p, onToggle, showName = true }) {
   const tipoInfo = TIPOS.find(t => t.value === p.tipo) ?? TIPOS[TIPOS.length - 1];
   const esDoce = tipoInfo.esDoce;
   const fecha = p.createdAt?.toDate?.()
@@ -220,7 +239,7 @@ function PenaltiCard({ p, onToggle }) {
     <div className={`penalty-card ${p.pagado ? 'pagado' : ''}`}>
       <div style={{ fontSize: 22 }}>{tipoInfo.emoji}</div>
       <div className="penalty-info">
-        <div className="penalty-name">{p.nombre}</div>
+        {showName && <div className="penalty-name">{p.nombre}</div>}
         <div className="penalty-meta">{tipoInfo.label}{fecha ? ` · ${fecha}` : ''}</div>
         {p.descripcion && <div className="penalty-meta" style={{ fontStyle: 'italic' }}>{p.descripcion}</div>}
       </div>
