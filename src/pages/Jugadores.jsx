@@ -13,29 +13,38 @@ const STAT_MAX    = 99;
 const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,146,60,0.92)' : v >= 65 ? 'rgba(240,192,64,0.92)' : 'rgba(100,148,215,0.85)';
 const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
-/* ── Player silhouette SVG ── */
-function PlayerSilhouette({ isGK }) {
-  return isGK ? (
-    <svg viewBox="0 0 28 46" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
-      style={{ width: '78%', height: '78%', opacity: 0.72 }}>
-      <circle cx="14" cy="5" r="4" fill="currentColor" stroke="none"/>
-      <line x1="14" y1="9" x2="14" y2="26" strokeWidth="6.5"/>
-      <line x1="14" y1="12" x2="3"  y2="5"  strokeWidth="3"/>
-      <line x1="14" y1="12" x2="25" y2="5"  strokeWidth="3"/>
-      <line x1="14" y1="26" x2="9"  y2="40" strokeWidth="4"/>
-      <line x1="14" y1="26" x2="19" y2="40" strokeWidth="4"/>
-    </svg>
-  ) : (
-    <svg viewBox="0 0 28 48" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
-      style={{ width: '78%', height: '78%', opacity: 0.72 }}>
-      <circle cx="14" cy="5" r="4" fill="currentColor" stroke="none"/>
-      <line x1="14" y1="9"  x2="14" y2="26" strokeWidth="6.5"/>
-      <line x1="14" y1="14" x2="5"  y2="22" strokeWidth="3"/>
-      <line x1="14" y1="14" x2="24" y2="9"  strokeWidth="3"/>
-      <line x1="14" y1="26" x2="8"  y2="41" strokeWidth="4"/>
-      <line x1="14" y1="26" x2="21" y2="39" strokeWidth="4"/>
-      <circle cx="7" cy="44" r="2.5" fill="currentColor" stroke="none" opacity="0.6"/>
-    </svg>
+/* ── Player silhouette sprite (4×2 grid, 750×500px JPG) ── */
+const POSE_MAP = {
+  POR:  [1, 1], // lunge/reach — GK row1 col1
+  LTI:  [0, 3], // full sprint
+  LTD:  [0, 3], // full sprint
+  DFCi: [1, 3], // wide defensive stance
+  DFCd: [1, 3], // wide defensive stance
+  MDC:  [1, 2], // low control / tackle
+  MCI:  [0, 2], // running with ball
+  MC:   [0, 2], // running with ball
+  MCD:  [0, 2], // running with ball
+  MOC:  [0, 1], // active dribble
+  EXI:  [0, 0], // shooting
+  EXD:  [0, 0], // shooting
+  SD:   [0, 0], // shooting
+  DC:   [0, 0], // shooting
+};
+
+function PlayerSilhouette({ posicion }) {
+  const [row, col] = POSE_MAP[posicion] ?? [0, 1];
+  const xPct = (col / 3) * 100;
+  const yPct = row * 100;
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      backgroundImage: 'url(/silhouettes.jpg)',
+      backgroundSize: '400% 200%',
+      backgroundPosition: `${xPct}% ${yPct}%`,
+      backgroundRepeat: 'no-repeat',
+      filter: 'brightness(0) invert(1)',
+      opacity: 0.68,
+    }} />
   );
 }
 
@@ -519,7 +528,6 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
   const stats = { PAC: pac, TIR: tir, PAS: pas, REG: reg, DEF: def, FIS: fis };
   const tier    = isMvp ? 'inform' : (j.cardVariant ?? getCardTier(overall));
   const inactive = j.activo === false;
-  const isGK    = j.posicion === 'POR';
 
   const shortName = (() => {
     const parts = j.nombre.trim().split(' ');
@@ -577,13 +585,8 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
 
         {/* Avatar */}
         <div className="fut-card-avatar-wrap">
-          <div
-            className="fut-card-avatar"
-            style={tier === 'gold' || tier === 'elite'
-              ? { borderColor: 'rgba(240,192,64,0.5)', boxShadow: '0 0 16px rgba(240,192,64,0.25)' }
-              : {}}
-          >
-            <PlayerSilhouette isGK={isGK} />
+          <div className="fut-card-avatar">
+            <PlayerSilhouette posicion={j.posicion} />
           </div>
         </div>
 
