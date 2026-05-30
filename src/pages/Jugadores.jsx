@@ -10,6 +10,8 @@ const STAT_NAMES  = { pac: 'Velocidad', tir: 'Tiro', pas: 'Pase', reg: 'Regate',
 const STAT_BUDGET = 450;
 const STAT_MIN    = 40;
 const STAT_MAX    = 99;
+const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,146,60,0.92)' : v >= 65 ? 'rgba(240,192,64,0.92)' : 'rgba(100,148,215,0.85)';
+const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
 
 export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMvpId = null }) {
@@ -338,7 +340,7 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
                       type="range" min={STAT_MIN} max={STAT_MAX}
                       value={editStats[key]}
                       onChange={e => setStatSlider(key, e.target.value)}
-                      style={{ flex: 1, accentColor: 'var(--gold)', height: 4 }}
+                      style={{ flex: 1, accentColor: heatColor(editStats[key]), height: 4 }}
                     />
                     <button
                       onClick={() => setStat(key, 1)}
@@ -429,6 +431,15 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
       className={`fut-card fut-card-${tier} ${inactive ? 'fut-card-inactive' : ''} card-reveal`}
       style={{ animationDelay: `${animDelay}ms` }}
       onClick={onReveal}
+      onMouseMove={e => {
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty('--mx', ((e.clientX - r.left) / r.width).toFixed(3));
+        e.currentTarget.style.setProperty('--my', ((e.clientY - r.top) / r.height).toFixed(3));
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.removeProperty('--mx');
+        e.currentTarget.style.removeProperty('--my');
+      }}
     >
       {racha >= 2 && (
         <div style={{
