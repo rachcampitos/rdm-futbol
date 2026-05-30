@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -13,6 +13,138 @@ const STAT_MAX    = 99;
 const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,146,60,0.92)' : v >= 65 ? 'rgba(240,192,64,0.92)' : 'rgba(100,148,215,0.85)';
 const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
+const RADAR_ANGLES = { pac: -90, tir: -30, pas: 30, reg: 90, def: 150, fis: 210 };
+const RADAR_CX = 80, RADAR_CY = 80, RADAR_MAX_R = 58, RADAR_VB = 160;
+const RAD = Math.PI / 180;
+
+function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
+  const [dragging, setDragging] = useState(null);
+  const svgRef = useRef(null);
+
+  const total = STAT_KEYS.reduce((s, k) => s + stats[k], 0);
+  const free  = budget - total;
+  const budgetColor = free === 0 ? '#ef4444' : free <= 10 ? '#f59e0b' : '#10b981';
+
+  function radarPt(key, val) {
+    const a = RADAR_ANGLES[key] * RAD;
+    const r = ((val - min) / (max - min)) * RADAR_MAX_R;
+    return [RADAR_CX + r * Math.cos(a), RADAR_CY + r * Math.sin(a)];
+  }
+
+  function labelPt(key) {
+    const a = RADAR_ANGLES[key] * RAD;
+    const r = RADAR_MAX_R + 17;
+    return [RADAR_CX + r * Math.cos(a), RADAR_CY + r * Math.sin(a)];
+  }
+
+  function gridPts(pct) {
+    return STAT_KEYS.map(k => {
+      const a = RADAR_ANGLES[k] * RAD;
+      const r = pct * RADAR_MAX_R;
+      return `${RADAR_CX + r * Math.cos(a)},${RADAR_CY + r * Math.sin(a)}`;
+    }).join(' ');
+  }
+
+  const shapePts = STAT_KEYS.map(k => radarPt(k, stats[k]).join(',')).join(' ');
+
+  function updateFromPointer(clientX, clientY) {
+    if (!dragging) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const sx = (clientX - rect.left) * (RADAR_VB / rect.width);
+    const sy = (clientY - rect.top)  * (RADAR_VB / rect.height);
+    const a  = RADAR_ANGLES[dragging] * RAD;
+    const proj    = (sx - RADAR_CX) * Math.cos(a) + (sy - RADAR_CY) * Math.sin(a);
+    const clamped = Math.max(0, Math.min(RADAR_MAX_R, proj));
+    const newVal  = Math.round(min + (clamped / RADAR_MAX_R) * (max - min));
+    const otherTotal = STAT_KEYS.reduce((s, k) => k === dragging ? s : s + stats[k], 0);
+    onSetStat(dragging, Math.max(min, Math.min(Math.min(max, budget - otherTotal), newVal)));
+  }
+
+  const onMove = e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const t = e.touches?.[0];
+    updateFromPointer(t?.clientX ?? e.clientX, t?.clientY ?? e.clientY);
+  };
+
+  return (
+    <div className="form-group">
+      <label className="form-label">Stats de la tarjeta</label>
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
+            Presupuesto
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: budgetColor, fontFamily: 'Rajdhani, sans-serif' }}>
+            {total} / {budget}
+            {free > 0
+              ? <span style={{ color: 'var(--text3)', fontWeight: 400 }}> · {free} libres</span>
+              : <span style={{ color: '#ef4444' }}> · ¡Lleno!</span>}
+          </span>
+        </div>
+        <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', borderRadius: 3, width: `${(total / budget) * 100}%`, background: budgetColor, transition: 'width 0.12s, background 0.2s' }} />
+        </div>
+      </div>
+
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${RADAR_VB} ${RADAR_VB}`}
+        style={{ width: '100%', touchAction: 'none', userSelect: 'none', display: 'block' }}
+        onMouseMove={onMove}
+        onMouseUp={() => setDragging(null)}
+        onMouseLeave={() => setDragging(null)}
+        onTouchMove={onMove}
+        onTouchEnd={() => setDragging(null)}
+      >
+        {/* Grid rings */}
+        {[0.25, 0.5, 0.75, 1].map(pct => (
+          <polygon key={pct} points={gridPts(pct)} fill="none"
+            stroke={pct === 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}
+            strokeWidth={pct === 1 ? 1 : 0.5} />
+        ))}
+
+        {/* Axis lines */}
+        {STAT_KEYS.map(k => {
+          const a = RADAR_ANGLES[k] * RAD;
+          return <line key={k} x1={RADAR_CX} y1={RADAR_CY}
+            x2={RADAR_CX + RADAR_MAX_R * Math.cos(a)} y2={RADAR_CY + RADAR_MAX_R * Math.sin(a)}
+            stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />;
+        })}
+
+        {/* Filled shape */}
+        <polygon points={shapePts} fill="rgba(240,192,64,0.16)" stroke="rgba(240,192,64,0.88)" strokeWidth="1.5" strokeLinejoin="round" />
+
+        {/* Vertex handles + labels */}
+        {STAT_KEYS.map(k => {
+          const [px, py] = radarPt(k, stats[k]);
+          const [lx, ly] = labelPt(k);
+          return (
+            <g key={k}>
+              <circle cx={px} cy={py} r={11} fill="transparent"
+                style={{ cursor: dragging === k ? 'grabbing' : 'grab' }}
+                onMouseDown={e => { e.stopPropagation(); setDragging(k); }}
+                onTouchStart={e => { e.stopPropagation(); setDragging(k); }} />
+              <circle cx={px} cy={py} r={5}
+                fill={dragging === k ? '#ffffff' : 'rgba(240,192,64,0.95)'}
+                stroke="rgba(0,0,0,0.65)" strokeWidth="1.2"
+                style={{ pointerEvents: 'none', transition: 'fill 0.1s' }} />
+              <text x={lx} y={ly - 3} textAnchor="middle" fontSize="6.5"
+                fontFamily="Rajdhani, sans-serif" fontWeight="700" fill="rgba(255,255,255,0.65)"
+                style={{ pointerEvents: 'none' }}>{STAT_LABELS[k]}</text>
+              <text x={lx} y={ly + 6} textAnchor="middle" fontSize="9.5"
+                fontFamily="Rajdhani, sans-serif" fontWeight="700" fill={heatColor(stats[k])}
+                style={{ pointerEvents: 'none' }}>{stats[k]}</text>
+            </g>
+          );
+        })}
+
+        <circle cx={RADAR_CX} cy={RADAR_CY} r={2.5} fill="rgba(255,255,255,0.18)" style={{ pointerEvents: 'none' }} />
+      </svg>
+    </div>
+  );
+}
 
 export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMvpId = null }) {
   const [showForm, setShowForm]       = useState(false);
@@ -289,80 +421,13 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
 
             {/* Stats editor — only when editing an existing player */}
             {editId && (
-              <div className="form-group">
-                <label className="form-label">Stats de la tarjeta</label>
-
-                {/* Budget bar */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
-                      Presupuesto
-                    </span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: budgetColor, fontFamily: 'Rajdhani, sans-serif' }}>
-                      {totalUsado} / {STAT_BUDGET}
-                      {ptsLibres > 0
-                        ? <span style={{ color: 'var(--text3)', fontWeight: 400 }}> · {ptsLibres} libres</span>
-                        : <span style={{ color: '#ef4444' }}> · ¡Lleno!</span>}
-                    </span>
-                  </div>
-                  <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', borderRadius: 3,
-                      width: `${(totalUsado / STAT_BUDGET) * 100}%`,
-                      background: budgetColor,
-                      transition: 'width 0.15s, background 0.2s',
-                    }} />
-                  </div>
-                </div>
-
-                {STAT_KEYS.map(key => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 36, flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1 }}>
-                        {STAT_LABELS[key]}
-                      </div>
-                      <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif' }}>
-                        {STAT_NAMES[key]}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setStat(key, -1)}
-                      disabled={editStats[key] <= STAT_MIN}
-                      style={{
-                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                        border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)',
-                        color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: editStats[key] <= STAT_MIN ? 0.3 : 1,
-                      }}
-                    >−</button>
-                    <input
-                      type="range" min={STAT_MIN} max={STAT_MAX}
-                      value={editStats[key]}
-                      onChange={e => setStatSlider(key, e.target.value)}
-                      style={{ flex: 1, accentColor: heatColor(editStats[key]), height: 4 }}
-                    />
-                    <button
-                      onClick={() => setStat(key, 1)}
-                      disabled={ptsLibres === 0 || editStats[key] >= STAT_MAX}
-                      style={{
-                        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                        border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)',
-                        color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        opacity: (ptsLibres === 0 || editStats[key] >= STAT_MAX) ? 0.3 : 1,
-                      }}
-                    >+</button>
-                    <div style={{
-                      width: 32, textAlign: 'right', flexShrink: 0,
-                      fontSize: 18, fontWeight: 700, fontFamily: 'Rajdhani, sans-serif',
-                      color: editStats[key] >= 85 ? '#f0c040' : editStats[key] >= 70 ? 'var(--text)' : 'var(--text3)',
-                    }}>
-                      {editStats[key]}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <RadarStatEditor
+                stats={editStats}
+                onSetStat={(key, val) => setEditStats(prev => ({ ...prev, [key]: val }))}
+                budget={STAT_BUDGET}
+                min={STAT_MIN}
+                max={STAT_MAX}
+              />
             )}
 
             {/* Admin: special card variant */}
@@ -432,13 +497,19 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
       style={{ animationDelay: `${animDelay}ms` }}
       onClick={onReveal}
       onMouseMove={e => {
-        const r = e.currentTarget.getBoundingClientRect();
-        e.currentTarget.style.setProperty('--mx', ((e.clientX - r.left) / r.width).toFixed(3));
-        e.currentTarget.style.setProperty('--my', ((e.clientY - r.top) / r.height).toFixed(3));
+        const r  = e.currentTarget.getBoundingClientRect();
+        const mx = (e.clientX - r.left) / r.width;
+        const my = (e.clientY - r.top)  / r.height;
+        e.currentTarget.style.setProperty('--mx', mx.toFixed(3));
+        e.currentTarget.style.setProperty('--my', my.toFixed(3));
+        const rx = (my - 0.5) * 14;
+        const ry = (mx - 0.5) * -14;
+        e.currentTarget.style.transform = `perspective(450px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-4px) scale(1.04)`;
       }}
       onMouseLeave={e => {
         e.currentTarget.style.removeProperty('--mx');
         e.currentTarget.style.removeProperty('--my');
+        e.currentTarget.style.transform = '';
       }}
     >
       {racha >= 2 && (
