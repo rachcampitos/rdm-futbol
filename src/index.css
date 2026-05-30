@@ -199,17 +199,16 @@ body::before {
 .nav {
   display: flex;
   background: var(--bg2);
-  border-top: 1px solid rgba(240,192,64,0.15);
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  border-bottom: 1px solid rgba(240,192,64,0.15);
+  position: sticky; top: 0; z-index: 200;
   backdrop-filter: blur(10px);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .nav-tab {
   flex: 1; padding: 10px 4px 9px; text-align: center;
   cursor: pointer; border: none; background: transparent;
   color: var(--text3);
-  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
   transition: color .2s, border-color .2s, background .2s;
   user-select: none;
   position: relative;
@@ -218,13 +217,13 @@ body::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(0deg, rgba(240,192,64,0.06) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(240,192,64,0.06) 0%, transparent 100%);
   opacity: 0;
   transition: opacity .2s;
 }
 .nav-tab:hover { color: var(--text2); }
 .nav-tab:hover::before { opacity: 1; }
-.nav-tab.active { color: var(--gold); border-top-color: var(--gold); }
+.nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 .nav-tab.active::before { opacity: 1; }
 .nav-icon { font-size: 16px; display: block; margin-bottom: 2px; }
 .nav-label { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; font-family: 'Rajdhani', sans-serif; }

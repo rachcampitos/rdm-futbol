@@ -907,13 +907,11 @@ export default function App() {
         ))}
       </nav>
 
-      <div style={{ paddingBottom: 'calc(58px + env(safe-area-inset-bottom))' }}>
-        {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} onEditarPerfil={() => setEditandoPerfil(true)} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
-        {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
-        {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} isAdmin={isAdmin} />}
-        {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} isAdmin={isAdmin} />}
-        {tab === 'stats'    && <Historial partidos={historialPartidos} jugadores={jugadores} />}
-      </div>
+      {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} onEditarPerfil={() => setEditandoPerfil(true)} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
+      {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
+      {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} isAdmin={isAdmin} />}
+      {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} isAdmin={isAdmin} />}
+      {tab === 'stats'    && <Historial partidos={historialPartidos} jugadores={jugadores} />}
     </div>
   );
 }
