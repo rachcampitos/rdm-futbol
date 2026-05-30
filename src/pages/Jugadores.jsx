@@ -44,7 +44,7 @@ function PlayerSilhouette({ posicion }) {
       backgroundSize: '400% 200%',
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
-      filter: 'invert(1) brightness(3) contrast(8)',
+      filter: 'invert(1) brightness(3) contrast(5)',
       opacity: 0.62,
     }} />
   );

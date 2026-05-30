@@ -603,7 +603,7 @@ input[type="range"]:focus-visible {
   overflow: hidden;
   cursor: pointer;
   transition: transform .18s ease, box-shadow .2s;
-  aspect-ratio: 0.72;
+  aspect-ratio: 0.66;
   user-select: none;
   will-change: transform;
   transform-style: preserve-3d;
@@ -854,9 +854,9 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar {
-  width: 57px; height: 76px; border-radius: 8px;
+  width: 76px; height: 102px; border-radius: 8px;
   overflow: hidden;
-  background: rgba(0,0,0,0.25);
+  background: rgba(0,0,0,0.15);
   border: 1.5px solid rgba(255,255,255,0.2);
   box-shadow: 0 2px 12px rgba(0,0,0,0.5);
   flex-shrink: 0;
@@ -916,7 +916,7 @@ input[type="range"]:focus-visible {
 
 .fut-card-name {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
-  font-size: 13px; font-weight: 700;
+  font-size: 15px; font-weight: 700;
   color: rgba(255,255,255,0.95);
   text-align: center;
   text-transform: uppercase;
