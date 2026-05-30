@@ -35,6 +35,8 @@ function PlayerSilhouette({ posicion }) {
   const [row, col] = POSE_MAP[posicion] ?? [0, 1];
   const xPct = (col / 3) * 100;
   const yPct = row * 100;
+  // invert(1): navy→warm-beige, white→black
+  // brightness(3)+contrast(8): beige→white, black stays black → crisp white silhouette on black bg
   return (
     <div style={{
       width: '100%', height: '100%',
@@ -42,8 +44,8 @@ function PlayerSilhouette({ posicion }) {
       backgroundSize: '400% 200%',
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
-      filter: 'brightness(0) invert(1)',
-      opacity: 0.68,
+      filter: 'invert(1) brightness(3) contrast(8)',
+      opacity: 0.62,
     }} />
   );
 }
