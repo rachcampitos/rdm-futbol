@@ -14,7 +14,7 @@ const heatColor = v => v >= 90 ? 'rgba(239,68,68,0.92)' : v >= 80 ? 'rgba(251,14
 const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
 const RADAR_ANGLES = { pac: -90, tir: -30, pas: 30, reg: 90, def: 150, fis: 210 };
-const RADAR_CX = 80, RADAR_CY = 80, RADAR_MAX_R = 58, RADAR_VB = 160;
+const RADAR_CX = 90, RADAR_CY = 90, RADAR_MAX_R = 58, RADAR_VB = 180;
 const RAD = Math.PI / 180;
 
 function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
@@ -33,7 +33,7 @@ function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
 
   function labelPt(key) {
     const a = RADAR_ANGLES[key] * RAD;
-    const r = RADAR_MAX_R + 17;
+    const r = RADAR_MAX_R + 19;
     return [RADAR_CX + r * Math.cos(a), RADAR_CY + r * Math.sin(a)];
   }
 
@@ -114,7 +114,7 @@ function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
         })}
 
         {/* Filled shape */}
-        <polygon points={shapePts} fill="rgba(240,192,64,0.16)" stroke="rgba(240,192,64,0.88)" strokeWidth="1.5" strokeLinejoin="round" />
+        <polygon points={shapePts} fill="rgba(240,192,64,0.13)" stroke="rgba(240,192,64,0.75)" strokeWidth="1" strokeLinejoin="round" />
 
         {/* Vertex handles + labels */}
         {STAT_KEYS.map(k => {
@@ -126,9 +126,9 @@ function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
                 style={{ cursor: dragging === k ? 'grabbing' : 'grab' }}
                 onMouseDown={e => { e.stopPropagation(); setDragging(k); }}
                 onTouchStart={e => { e.stopPropagation(); setDragging(k); }} />
-              <circle cx={px} cy={py} r={5}
+              <circle cx={px} cy={py} r={3.5}
                 fill={dragging === k ? '#ffffff' : 'rgba(240,192,64,0.95)'}
-                stroke="rgba(0,0,0,0.65)" strokeWidth="1.2"
+                stroke="rgba(0,0,0,0.5)" strokeWidth="1"
                 style={{ pointerEvents: 'none', transition: 'fill 0.1s' }} />
               <text x={lx} y={ly - 3} textAnchor="middle" fontSize="6.5"
                 fontFamily="Rajdhani, sans-serif" fontWeight="700" fill="rgba(255,255,255,0.65)"
@@ -140,7 +140,7 @@ function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
           );
         })}
 
-        <circle cx={RADAR_CX} cy={RADAR_CY} r={2.5} fill="rgba(255,255,255,0.18)" style={{ pointerEvents: 'none' }} />
+        <circle cx={RADAR_CX} cy={RADAR_CY} r={1.5} fill="rgba(255,255,255,0.12)" style={{ pointerEvents: 'none' }} />
       </svg>
     </div>
   );
