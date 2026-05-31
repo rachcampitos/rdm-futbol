@@ -543,6 +543,7 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
   })();
 
   return (
+    <div className="fut-card-wrapper">
     <div
       className={`fut-card fut-card-${tier} ${inactive ? 'fut-card-inactive' : ''} card-reveal`}
       style={{ animationDelay: `${animDelay}ms` }}
@@ -612,36 +613,6 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="fut-card-actions">
-          <button
-            className="fut-card-action-btn"
-            onClick={e => { e.stopPropagation(); onEdit(j); }}
-          >
-            Editar
-          </button>
-          <button
-            className={`fut-card-toggle ${j.activo !== false ? 'on' : 'off'}`}
-            onClick={e => { e.stopPropagation(); onToggle(j); }}
-            title={j.activo !== false ? 'Marcar como inactivo' : 'Reactivar jugador'}
-          >
-            <span className="fut-card-toggle-track">
-              <span className="fut-card-toggle-thumb" />
-            </span>
-            <span className="fut-card-toggle-label">
-              {j.activo !== false ? 'Activo' : 'Baja'}
-            </span>
-          </button>
-          {onEliminar && (
-            <button
-              className="fut-card-action-btn"
-              onClick={e => { e.stopPropagation(); onEliminar(j); }}
-              style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }}
-            >
-              Eliminar
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Inactive overlay */}
@@ -650,6 +621,36 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
           <div className="fut-card-inactive-badge">BAJA</div>
         </div>
       )}
+    </div>
+    <div className="fut-card-actions">
+      <button
+        className="fut-card-action-btn"
+        onClick={e => { e.stopPropagation(); onEdit(j); }}
+      >
+        Editar
+      </button>
+      <button
+        className={`fut-card-toggle ${j.activo !== false ? 'on' : 'off'}`}
+        onClick={e => { e.stopPropagation(); onToggle(j); }}
+        title={j.activo !== false ? 'Marcar como inactivo' : 'Reactivar jugador'}
+      >
+        <span className="fut-card-toggle-track">
+          <span className="fut-card-toggle-thumb" />
+        </span>
+        <span className="fut-card-toggle-label">
+          {j.activo !== false ? 'Activo' : 'Baja'}
+        </span>
+      </button>
+      {onEliminar && (
+        <button
+          className="fut-card-action-btn"
+          onClick={e => { e.stopPropagation(); onEliminar(j); }}
+          style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }}
+        >
+          Eliminar
+        </button>
+      )}
+    </div>
     </div>
   );
 }

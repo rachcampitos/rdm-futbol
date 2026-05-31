@@ -597,6 +597,11 @@ input[type="range"]:focus-visible {
   margin-bottom: 10px;
 }
 
+.fut-card-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .fut-card {
   position: relative;
   border-radius: 10px;
@@ -852,7 +857,7 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar {
-  width: 76px; height: 102px;
+  width: 84px; height: 112px;
   overflow: hidden;
   background: transparent;
   flex-shrink: 0;
@@ -957,7 +962,7 @@ input[type="range"]:focus-visible {
 .fut-card-actions {
   display: flex;
   gap: 4px;
-  margin-top: 4px;
+  padding: 4px 0 2px;
   justify-content: center;
 }
 .fut-card-action-btn {
