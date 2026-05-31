@@ -38,6 +38,10 @@ const POSE_MAP = {
 const POSE_Y_ADJUST = { LTD: -8 };
 // scale < 1 → zoom out para eliminar sangrado JPEG en bordes de celda
 const POSE_SCALE = { DC: 0.88 };
+// Máscara para recortar bordes específicos donde sangra una celda vecina
+const POSE_MASK = {
+  DC: 'linear-gradient(to right, black 90%, transparent 100%)',
+};
 
 const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg', 3: '/silhouettes3.jpg' };
 
@@ -51,6 +55,7 @@ function PlayerSilhouette({ posicion }) {
   const xPct = ((0.5 - (col + 0.5) * scale) / (1 - 4 * scale) * 100).toFixed(3);
   const yAdjust = POSE_Y_ADJUST[posicion] ?? 0;
   const yPct = ((0.5 - (row + 0.5) * scale) / (1 - 2 * scale) * 100 + yAdjust).toFixed(3);
+  const mask = POSE_MASK[posicion] ?? null;
   return (
     <div style={{
       width: '100%', height: '100%',
@@ -60,6 +65,7 @@ function PlayerSilhouette({ posicion }) {
       backgroundRepeat: 'no-repeat',
       filter: 'invert(1) brightness(3) contrast(15)',
       opacity: 0.82,
+      ...(mask ? { WebkitMaskImage: mask, maskImage: mask } : {}),
     }} />
   );
 }
