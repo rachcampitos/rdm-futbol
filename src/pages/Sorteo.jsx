@@ -657,7 +657,15 @@ function FieldLines() {
 
 /* Cards carousel — one team at a time with full FIFA mini-cards */
 function LineupView({ jugadores, formacion, team, justRevealed, jugadorActualId }) {
-  const pos = aplicarFormacion(jugadores, formacion, false);
+  const raw = aplicarFormacion(jugadores, formacion, false);
+
+  // Expand y-range from half-field [~55,94] to full-field [10,90]
+  // so cards spread across the whole pitch like EA FC "My Team" view
+  const ys = raw.map(p => p.y);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const span = maxY - minY || 1;
+  const pos = raw.map(p => ({ ...p, y: ((p.y - minY) / span) * 80 + 10 }));
+
   return (
     <div className="field-wrap">
       <div className="field-bg" />
