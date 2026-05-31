@@ -22,7 +22,8 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
   const [formacionA, setFormacionA]         = useState(null);
   const [formacionB, setFormacionB]         = useState(null);
   const [formatoSel, setFormatoSel]         = useState(null);
-  const [sorteoView, setSorteoView]         = useState('cancha'); // 'cancha' | 'equipos'
+  const [sorteoView, setSorteoView]         = useState('cards'); // 'cards' | 'cancha' | 'equipos'
+  const [lineupEquipo, setLineupEquipo]     = useState('A'); // 'A' | 'B' for lineup carousel
   const [cerrandoPartido, setCerrandoPartido] = useState(false);
   const [pickerEquipo, setPickerEquipo]       = useState(null); // null | 'A' | 'B'
 
@@ -76,7 +77,8 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
       setFormacionB(null);
       setAnimating(false);
       setJustRevealed(true);
-      setSorteoView('cancha');
+      setSorteoView('cards');
+      setLineupEquipo('A');
     }, 2000);
   }
 
@@ -300,6 +302,12 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
               {/* View tabs */}
           <div className="sorteo-view-tabs">
             <button
+              className={`sorteo-view-tab${sorteoView === 'cards' ? ' active' : ''}`}
+              onClick={() => setSorteoView('cards')}
+            >
+              🃏 Cards
+            </button>
+            <button
               className={`sorteo-view-tab${sorteoView === 'cancha' ? ' active' : ''}`}
               onClick={() => setSorteoView('cancha')}
             >
@@ -313,9 +321,23 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
             </button>
           </div>
 
-          {/* CANCHA view */}
-          {sorteoView === 'cancha' && (
+          {/* CARDS view — lineup carousel, one team at a time */}
+          {sorteoView === 'cards' && (
             <>
+              <div className="lineup-team-toggle">
+                <button
+                  className={`lineup-toggle-btn${lineupEquipo === 'A' ? ' lineup-toggle-a' : ''}`}
+                  onClick={() => setLineupEquipo('A')}
+                >
+                  🔵 Equipo Azul
+                </button>
+                <button
+                  className={`lineup-toggle-btn${lineupEquipo === 'B' ? ' lineup-toggle-b' : ''}`}
+                  onClick={() => setLineupEquipo('B')}
+                >
+                  🔴 Equipo Rojo
+                </button>
+              </div>
               <FormacionSelector
                 equipoA={equipoA}
                 equipoB={equipoB}
@@ -324,15 +346,26 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
                 onChangeA={f => cambiarFormacion('A', f)}
                 onChangeB={f => cambiarFormacion('B', f)}
               />
-              <CanchaView
-                equipoA={equipoA}
-                equipoB={equipoB}
-                formacionA={fA}
-                formacionB={fB}
+              <LineupView
+                jugadores={lineupEquipo === 'A' ? equipoA : equipoB}
+                formacion={lineupEquipo === 'A' ? fA : fB}
+                team={lineupEquipo === 'A' ? 'a' : 'b'}
                 justRevealed={justRevealed}
                 jugadorActualId={jugadorActual?.id}
               />
             </>
+          )}
+
+          {/* CANCHA view — both teams with overall chips */}
+          {sorteoView === 'cancha' && (
+            <CanchaView
+              equipoA={equipoA}
+              equipoB={equipoB}
+              formacionA={fA}
+              formacionB={fB}
+              justRevealed={justRevealed}
+              jugadorActualId={jugadorActual?.id}
+            />
           )}
 
           {/* EQUIPOS view */}
@@ -584,6 +617,65 @@ function FormacionSelector({ equipoA, equipoB, formacionA, formacionB, onChangeA
    CanchaView — ahora usa aplicarFormacion en lugar de
    calcularPosicionesCancha
    ───────────────────────────────────────────────────────────── */
+/* Shared tactical SVG field lines */
+function FieldLines() {
+  return (
+    <svg className="field-svg" viewBox="0 0 100 168" preserveAspectRatio="none">
+      <rect x="3" y="3" width="94" height="162" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
+      <line x1="3" y1="84" x2="97" y2="84" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
+      <circle cx="50" cy="84" r="12" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="0.5"/>
+      <circle cx="50" cy="84" r="0.9" fill="rgba(255,255,255,0.85)"/>
+      <rect x="20" y="3" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
+      <rect x="36.5" y="3" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <rect x="45" y="0.8" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
+      <circle cx="50" cy="19" r="0.7" fill="rgba(255,255,255,0.7)"/>
+      <path d="M 40,27 A 13 13 0 0 0 60,27" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <rect x="20" y="141" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
+      <rect x="36.5" y="156" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <rect x="45" y="163.2" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
+      <circle cx="50" cy="149" r="0.7" fill="rgba(255,255,255,0.7)"/>
+      <path d="M 40,141 A 13 13 0 0 1 60,141" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <path d="M 7,3 A 4 4 0 0 1 3,7"       fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <path d="M 93,3 A 4 4 0 0 0 97,7"     fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <path d="M 3,161 A 4 4 0 0 1 7,165"   fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <path d="M 93,165 A 4 4 0 0 1 97,161" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
+      <defs>
+        <radialGradient id="topLight" cx="50%" cy="0%" r="40%">
+          <stop offset="0%" stopColor="rgba(255,255,220,0.09)"/>
+          <stop offset="100%" stopColor="rgba(255,255,220,0)"/>
+        </radialGradient>
+        <radialGradient id="botLight" cx="50%" cy="100%" r="40%">
+          <stop offset="0%" stopColor="rgba(255,255,220,0.07)"/>
+          <stop offset="100%" stopColor="rgba(255,255,220,0)"/>
+        </radialGradient>
+      </defs>
+      <rect x="0" y="0" width="100" height="168" fill="url(#topLight)"/>
+      <rect x="0" y="0" width="100" height="168" fill="url(#botLight)"/>
+    </svg>
+  );
+}
+
+/* Cards carousel — one team at a time with full FIFA mini-cards */
+function LineupView({ jugadores, formacion, team, justRevealed, jugadorActualId }) {
+  const pos = aplicarFormacion(jugadores, formacion, false);
+  return (
+    <div className="field-wrap">
+      <div className="field-bg" />
+      <FieldLines />
+      {pos.map((p, i) => (
+        <MiniPitchCard
+          key={`lineup-${p.id ?? i}`}
+          player={p}
+          team={team}
+          delay={justRevealed ? i * 80 : 0}
+          esYo={p.id === jugadorActualId}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* Cancha táctica — ambos equipos con chips de overall */
 function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, jugadorActualId }) {
   const posA = aplicarFormacion(equipoA, formacionA, true);
   const posB = aplicarFormacion(equipoB, formacionB, false);
@@ -591,43 +683,9 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
   return (
     <div className="field-wrap">
       <div className="field-bg" />
-
-      {/* Tactical SVG lines */}
-      <svg className="field-svg" viewBox="0 0 100 168" preserveAspectRatio="none">
-        <rect x="3" y="3" width="94" height="162" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
-        <line x1="3" y1="84" x2="97" y2="84" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
-        <circle cx="50" cy="84" r="12" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="0.5"/>
-        <circle cx="50" cy="84" r="0.9" fill="rgba(255,255,255,0.85)"/>
-        <rect x="20" y="3" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
-        <rect x="36.5" y="3" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <rect x="45" y="0.8" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
-        <circle cx="50" cy="19" r="0.7" fill="rgba(255,255,255,0.7)"/>
-        <path d="M 40,27 A 13 13 0 0 0 60,27" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <rect x="20" y="141" width="60" height="24" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.6)" strokeWidth="0.5"/>
-        <rect x="36.5" y="156" width="27" height="9" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <rect x="45" y="163.2" width="10" height="3" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5"/>
-        <circle cx="50" cy="149" r="0.7" fill="rgba(255,255,255,0.7)"/>
-        <path d="M 40,141 A 13 13 0 0 1 60,141" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 7,3 A 4 4 0 0 1 3,7"       fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 93,3 A 4 4 0 0 0 97,7"     fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 3,161 A 4 4 0 0 1 7,165"   fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <path d="M 93,165 A 4 4 0 0 1 97,161" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="0.4"/>
-        <defs>
-          <radialGradient id="topLight" cx="50%" cy="0%" r="40%">
-            <stop offset="0%" stopColor="rgba(255,255,220,0.09)"/>
-            <stop offset="100%" stopColor="rgba(255,255,220,0)"/>
-          </radialGradient>
-          <radialGradient id="botLight" cx="50%" cy="100%" r="40%">
-            <stop offset="0%" stopColor="rgba(255,255,220,0.07)"/>
-            <stop offset="100%" stopColor="rgba(255,255,220,0)"/>
-          </radialGradient>
-        </defs>
-        <rect x="0" y="0" width="100" height="168" fill="url(#topLight)"/>
-        <rect x="0" y="0" width="100" height="168" fill="url(#botLight)"/>
-      </svg>
-
+      <FieldLines />
       {posA.map((p, i) => (
-        <MiniPitchCard
+        <OverallChip
           key={`a-${p.id ?? i}`}
           player={p}
           team="a"
@@ -636,7 +694,7 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
         />
       ))}
       {posB.map((p, i) => (
-        <MiniPitchCard
+        <OverallChip
           key={`b-${p.id ?? i}`}
           player={p}
           team="b"
@@ -644,6 +702,26 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
           esYo={p.id === jugadorActualId}
         />
       ))}
+    </div>
+  );
+}
+
+/* Chip compacto con overall — para la vista cancha con ambos equipos */
+function OverallChip({ player, team, delay, esYo }) {
+  const overall = getRating(player);
+  return (
+    <div
+      className={`field-player field-player-animated card-reveal${esYo ? ' field-player-yo' : ''}`}
+      style={{ left: `${player.x}%`, top: `${player.y}%`, animationDelay: `${delay}ms` }}
+    >
+      <div className={`overall-chip team-${team}-chip${esYo ? ' overall-chip-yo' : ''}`}>
+        {overall}
+        {esYo && <span className="field-yo-dot" />}
+        {player.capitan && <span className="field-capitan-c">C</span>}
+      </div>
+      <div className={`field-player-name${esYo ? ' field-player-yo-name' : ''}`}>
+        {getShortName(player.nombre)}
+      </div>
     </div>
   );
 }

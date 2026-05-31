@@ -571,7 +571,7 @@ input[type="range"]:focus-visible {
   transition: transform .25s ease;
 }
 .pitch-mini-wrap:hover {
-  transform: translate(-50%, -56%) scale(1.22);
+  transform: translate(-50%, -56%) scale(1.18);
   z-index: 20;
 }
 .pitch-mini-wrap.card-reveal {
@@ -579,58 +579,91 @@ input[type="range"]:focus-visible {
 }
 
 .pitch-mini-inner {
-  width: 46px;
-  height: 60px;
-  border-radius: 5px;
+  width: 56px;
+  height: 92px;
+  border-radius: 6px;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   will-change: transform;
-  box-shadow: 0 4px 14px rgba(0,0,0,.8), 0 1px 3px rgba(0,0,0,.6);
 }
 
-/* Tier backgrounds — same palette as full FutCard */
-.pitch-mini-bronze { background: linear-gradient(160deg, #3d2800 0%, #7a5000 45%, #3d2800 100%); border: 1px solid rgba(186,130,50,0.45); }
-.pitch-mini-silver { background: linear-gradient(160deg, #1a2040 0%, #2a3060 45%, #1a2040 100%); border: 1px solid rgba(100,148,215,0.45); }
-.pitch-mini-gold   { background: linear-gradient(160deg, #2d1e00 0%, #5c3c00 45%, #2d1e00 100%); border: 1px solid rgba(200,148,20,0.55); }
-.pitch-mini-elite  { background: linear-gradient(160deg, #1a0040 0%, #3a0080 45%, #1a0040 100%); border: 1px solid rgba(140,90,255,0.55); }
-.pitch-mini-inform { background: linear-gradient(160deg, #3d0010 0%, #800020 45%, #3d0010 100%); border: 1px solid rgba(200,40,80,0.55); }
-.pitch-mini-toty   { background: linear-gradient(160deg, #00103d 0%, #002080 45%, #00103d 100%); border: 1px solid rgba(0,80,200,0.55); }
+/* Tier backgrounds — exact same gradients as full FutCard */
+.pitch-mini-bronze {
+  background: linear-gradient(145deg, #3d2010 0%, #7a4020 22%, #b06030 44%, #c87040 54%, #b06030 66%, #7a4020 82%, #3d2010 100%);
+  box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 12px rgba(176,96,48,0.4);
+  border: 1px solid rgba(176,96,48,0.55);
+}
+.pitch-mini-silver {
+  background: linear-gradient(145deg, #181e30 0%, #2c3a5c 22%, #4a6090 44%, #608ab8 54%, #4a6090 66%, #2c3a5c 82%, #181e30 100%);
+  box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 14px rgba(80,110,180,0.4);
+  border: 1px solid rgba(100,145,210,0.5);
+}
+.pitch-mini-gold {
+  background: linear-gradient(145deg, #2c1900 0%, #7a5000 20%, #c88800 40%, #f0c040 52%, #c88800 64%, #7a5000 82%, #2c1900 100%);
+  box-shadow: 0 6px 22px rgba(0,0,0,.9), 0 0 20px rgba(240,192,64,0.5);
+  border: 1px solid rgba(240,192,64,0.65);
+}
+.pitch-mini-elite {
+  background: linear-gradient(145deg, #060018 0%, #180058 18%, #3018b0 36%, #5838e8 50%, #0060c8 64%, #180058 82%, #060018 100%);
+  box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(100,60,255,0.6);
+  border: 1px solid rgba(130,90,255,0.72);
+}
+.pitch-mini-inform {
+  background: linear-gradient(145deg, #1a0004 0%, #650014 18%, #bb0030 38%, #e0003a 52%, #bb0030 66%, #650014 82%, #1a0004 100%);
+  box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(200,0,50,0.55);
+  border: 1px solid rgba(220,40,70,0.72);
+}
+.pitch-mini-toty {
+  background: linear-gradient(145deg, #000820 0%, #001058 18%, #001898 36%, #1040c0 50%, #001898 64%, #001058 82%, #000820 100%);
+  box-shadow: 0 6px 26px rgba(0,0,0,.98), 0 0 26px rgba(0,80,200,0.5);
+  border: 1px solid rgba(100,180,255,0.6);
+}
 
-/* Team stripe — left edge glow */
-.pitch-mini-team-a { box-shadow: 0 4px 14px rgba(0,0,0,.8), inset 2px 0 0 rgba(144,202,249,0.85); }
-.pitch-mini-team-b { box-shadow: 0 4px 14px rgba(0,0,0,.8), inset 2px 0 0 rgba(252,165,165,0.85); }
+/* Team stripe — override box-shadow to add left inset glow */
+.pitch-mini-team-a.pitch-mini-bronze  { box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 12px rgba(176,96,48,0.4),   inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-a.pitch-mini-silver  { box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 14px rgba(80,110,180,0.4),  inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-a.pitch-mini-gold    { box-shadow: 0 6px 22px rgba(0,0,0,.9),  0 0 20px rgba(240,192,64,0.5),  inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-a.pitch-mini-elite   { box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(100,60,255,0.6),  inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-a.pitch-mini-inform  { box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(200,0,50,0.55),   inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-a.pitch-mini-toty    { box-shadow: 0 6px 26px rgba(0,0,0,.98), 0 0 26px rgba(0,80,200,0.5),    inset 2.5px 0 0 rgba(144,202,249,0.9); }
+.pitch-mini-team-b.pitch-mini-bronze  { box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 12px rgba(176,96,48,0.4),   inset 2.5px 0 0 rgba(252,165,165,0.9); }
+.pitch-mini-team-b.pitch-mini-silver  { box-shadow: 0 5px 18px rgba(0,0,0,.85), 0 0 14px rgba(80,110,180,0.4),  inset 2.5px 0 0 rgba(252,165,165,0.9); }
+.pitch-mini-team-b.pitch-mini-gold    { box-shadow: 0 6px 22px rgba(0,0,0,.9),  0 0 20px rgba(240,192,64,0.5),  inset 2.5px 0 0 rgba(252,165,165,0.9); }
+.pitch-mini-team-b.pitch-mini-elite   { box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(100,60,255,0.6),  inset 2.5px 0 0 rgba(252,165,165,0.9); }
+.pitch-mini-team-b.pitch-mini-inform  { box-shadow: 0 6px 24px rgba(0,0,0,.95), 0 0 24px rgba(200,0,50,0.55),   inset 2.5px 0 0 rgba(252,165,165,0.9); }
+.pitch-mini-team-b.pitch-mini-toty    { box-shadow: 0 6px 26px rgba(0,0,0,.98), 0 0 26px rgba(0,80,200,0.5),    inset 2.5px 0 0 rgba(252,165,165,0.9); }
 
 /* Holographic light-shift overlay */
 .pitch-mini-shine {
   position: absolute; inset: 0; pointer-events: none; z-index: 2;
-  background: linear-gradient(135deg, rgba(255,255,255,0.14) 0%, transparent 55%, rgba(255,255,255,0.05) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.13) 0%, transparent 55%, rgba(255,255,255,0.04) 100%);
 }
 
 /* Header: overall + position */
 .pitch-mini-header {
-  padding: 2px 3px 0;
+  padding: 3px 4px 0;
   line-height: 1;
   z-index: 3;
   flex-shrink: 0;
 }
 .pitch-mini-overall {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
-  font-size: 11px; font-weight: 400; line-height: 1;
+  font-size: 15px; font-weight: 400; line-height: 1;
   color: rgba(255,255,255,0.95);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 .pitch-mini-pos {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 5px; font-weight: 700;
-  letter-spacing: 0.3px; line-height: 1;
-  color: rgba(255,255,255,0.6);
+  font-size: 7px; font-weight: 700;
+  letter-spacing: 0.4px; line-height: 1;
+  color: rgba(255,255,255,0.62);
   text-transform: uppercase;
-  margin-top: 0.5px;
+  margin-top: 1px;
 }
 
-/* Silhouette */
+/* Silhouette — explicit height to maintain portrait aspect ratio */
 .pitch-mini-avatar-wrap {
   flex: 1; min-height: 0;
   display: flex; align-items: center; justify-content: center;
@@ -644,39 +677,86 @@ input[type="range"]:focus-visible {
 /* Name bar */
 .pitch-mini-name {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 5px; font-weight: 700;
+  font-size: 7.5px; font-weight: 700;
   text-align: center; text-transform: uppercase;
-  color: rgba(255,255,255,0.92);
-  padding: 1.5px 2px;
+  color: rgba(255,255,255,0.93);
+  padding: 2px 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  letter-spacing: 0.3px;
-  background: rgba(0,0,0,0.28);
-  border-top: 1px solid rgba(255,255,255,0.1);
+  letter-spacing: 0.4px;
+  background: rgba(0,0,0,0.32);
+  border-top: 1px solid rgba(255,255,255,0.12);
   flex-shrink: 0; z-index: 3;
 }
 
 /* Captain badge */
 .pitch-mini-capitan {
-  position: absolute; top: 2px; right: 2px;
-  width: 9px; height: 9px; border-radius: 50%;
+  position: absolute; top: 3px; right: 3px;
+  width: 11px; height: 11px; border-radius: 50%;
   background: var(--gold, #f0c040); color: #000;
-  font-family: 'Rajdhani', sans-serif; font-size: 6px; font-weight: 900;
+  font-family: 'Rajdhani', sans-serif; font-size: 7px; font-weight: 900;
   display: flex; align-items: center; justify-content: center;
   z-index: 5;
 }
 
 /* "TÚ" glowing dot */
 .pitch-mini-yo-dot {
-  position: absolute; bottom: 16px; right: 3px;
-  width: 5px; height: 5px; border-radius: 50%;
+  position: absolute; bottom: 20px; right: 4px;
+  width: 6px; height: 6px; border-radius: 50%;
   background: var(--gold, #f0c040);
-  box-shadow: 0 0 5px rgba(240,192,64,0.95);
+  box-shadow: 0 0 6px rgba(240,192,64,0.95);
   z-index: 5;
 }
 
-/* Current player outline */
+/* Current player golden outline */
 .pitch-mini-yo .pitch-mini-inner {
-  box-shadow: 0 4px 14px rgba(0,0,0,.8), 0 0 0 1.5px var(--gold, #f0c040), 0 0 10px rgba(240,192,64,0.4);
+  box-shadow: 0 6px 22px rgba(0,0,0,.9), 0 0 0 1.5px var(--gold, #f0c040), 0 0 12px rgba(240,192,64,0.45) !important;
+}
+
+/* ── Overall chips (cancha view — ambos equipos) ── */
+.overall-chip {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
+  font-size: 14px; font-weight: 700; color: #fff;
+  position: relative;
+}
+.team-a-chip {
+  background: rgba(21,101,192,0.18);
+  border: 2px solid rgba(144,202,249,0.88);
+  box-shadow: 0 3px 12px rgba(0,0,0,.75), 0 0 8px rgba(144,202,249,0.28);
+}
+.team-b-chip {
+  background: rgba(185,28,28,0.18);
+  border: 2px solid rgba(252,165,165,0.88);
+  box-shadow: 0 3px 12px rgba(0,0,0,.75), 0 0 8px rgba(252,165,165,0.28);
+}
+.overall-chip-yo {
+  border-color: var(--gold, #f0c040) !important;
+  box-shadow: 0 3px 12px rgba(0,0,0,.75), 0 0 10px rgba(240,192,64,0.5) !important;
+}
+
+/* ── Lineup team toggle (cards view) ── */
+.lineup-team-toggle {
+  display: flex; gap: 8px; margin-bottom: 10px;
+}
+.lineup-toggle-btn {
+  flex: 1; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--text2);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.lineup-toggle-a {
+  border-color: rgba(144,202,249,0.6);
+  background: rgba(21,101,192,0.15);
+  color: #90caf9;
+}
+.lineup-toggle-b {
+  border-color: rgba(252,165,165,0.6);
+  background: rgba(185,28,28,0.15);
+  color: #fca5a5;
 }
 
 /* ── Team legend ── */
