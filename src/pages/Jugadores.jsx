@@ -40,7 +40,7 @@ const POSE_Y_ADJUST = { LTD: -8 };
 const POSE_SCALE = { DC: 0.88 };
 // Máscara para recortar bordes específicos donde sangra una celda vecina
 const POSE_MASK = {
-  DC: 'linear-gradient(to right, black 90%, transparent 100%)',
+  DC: 'linear-gradient(to right, black 80%, transparent 90%)',
 };
 
 const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg', 3: '/silhouettes3.jpg' };
