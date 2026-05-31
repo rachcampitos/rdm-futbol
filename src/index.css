@@ -858,7 +858,7 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar {
-  width: 92px; height: 123px;
+  width: 112px; height: 150px;
   overflow: hidden;
   background: transparent;
   flex-shrink: 0;
