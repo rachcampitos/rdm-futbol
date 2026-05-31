@@ -600,6 +600,7 @@ input[type="range"]:focus-visible {
 .fut-card-wrapper {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .fut-card {
@@ -857,7 +858,7 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar {
-  width: 84px; height: 112px;
+  width: 92px; height: 123px;
   overflow: hidden;
   background: transparent;
   flex-shrink: 0;

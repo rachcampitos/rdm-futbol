@@ -19,7 +19,7 @@ const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
  *  POSE_MAP: [row, col, sheet]  — each position gets a unique pose
  */
 const POSE_MAP = {
-  POR:  [0, 0, 2], // GK dive arm up
+  POR:  [0, 1, 2], // GK horizontal dive (full body)
   LTI:  [0, 3, 1], // full sprint
   LTD:  [1, 1, 2], // jogging with ball
   DFCi: [1, 0, 2], // standing defensive
@@ -34,13 +34,14 @@ const POSE_MAP = {
   SD:   [0, 3, 2], // standing with ball (upright)
   DC:   [0, 2, 2], // kicking
 };
+const POSE_Y_ADJUST = { LTD: -4 };
 
 const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg' };
 
 function PlayerSilhouette({ posicion }) {
   const [row, col, sheet = 1] = POSE_MAP[posicion] ?? [0, 1, 1];
   const xPct = (col / 3) * 100;
-  const yPct = row * 100;
+  const yPct = row * 100 + (POSE_Y_ADJUST[posicion] ?? 0);
   return (
     <div style={{
       width: '100%', height: '100%',
@@ -48,7 +49,7 @@ function PlayerSilhouette({ posicion }) {
       backgroundSize: '400% 200%',
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
-      filter: 'invert(1) brightness(3) contrast(5)',
+      filter: 'invert(1) brightness(3) contrast(7)',
       opacity: 0.82,
     }} />
   );
