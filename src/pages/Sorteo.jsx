@@ -6,7 +6,9 @@ import {
   getWeekId, getShortName, getInitials, distribuirEquipos,
   FORMACIONES, getFormacionDefault, aplicarFormacion,
   getFormatosValidos, getPosicionLabel, getPosicionConfig,
+  calcStats, getRating, getCardTier,
 } from '../utils';
+import { PlayerSilhouette } from '../components/PlayerSilhouette';
 
 // Derive the match format label from team sizes: "4 VS 4", "10 VS 10", etc.
 function getFormatoPartido(sizeA, sizeB) {
@@ -625,7 +627,7 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
       </svg>
 
       {posA.map((p, i) => (
-        <PlayerToken
+        <MiniPitchCard
           key={`a-${p.id ?? i}`}
           player={p}
           team="a"
@@ -634,7 +636,7 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
         />
       ))}
       {posB.map((p, i) => (
-        <PlayerToken
+        <MiniPitchCard
           key={`b-${p.id ?? i}`}
           player={p}
           team="b"
@@ -646,23 +648,41 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
   );
 }
 
-function PlayerToken({ player, team, delay, esYo }) {
+function MiniPitchCard({ player, team, delay, esYo }) {
+  const overall = getRating(player);
+  const tier = player.cardVariant ?? getCardTier(overall);
+  const cfg = getPosicionConfig(player.posicion);
+
+  const shortName = (() => {
+    const parts = player.nombre.trim().split(' ');
+    if (parts.length === 1) return parts[0].toUpperCase();
+    if (parts[0].length <= 6) return `${parts[0]} ${parts[1][0]}.`.toUpperCase();
+    return parts[0].toUpperCase();
+  })();
+
   return (
     <div
-      className={`field-player field-player-animated card-reveal ${esYo ? 'field-player-yo' : ''}`}
-      style={{
-        left: `${player.x}%`,
-        top: `${player.y}%`,
-        animationDelay: `${delay}ms`,
-      }}
+      className={`pitch-mini-wrap card-reveal${esYo ? ' pitch-mini-yo' : ''}`}
+      style={{ left: `${player.x}%`, top: `${player.y}%`, animationDelay: `${delay}ms` }}
     >
-      <div className={`field-player-circle team-${team}-circle ${esYo ? 'field-player-yo-circle' : ''}`}>
-        {getInitials(player.nombre)}
-        {esYo && <span className="field-yo-dot" />}
-        {player.capitan && <span className="field-capitan-c">C</span>}
-      </div>
-      <div className={`field-player-name ${esYo ? 'field-player-yo-name' : ''}`}>
-        {getShortName(player.nombre)}
+      <div className={`pitch-mini-inner pitch-mini-${tier} pitch-mini-team-${team}`}>
+        <div className="pitch-mini-shine" />
+
+        <div className="pitch-mini-header">
+          <div className="pitch-mini-overall">{overall}</div>
+          <div className="pitch-mini-pos">{cfg.label}</div>
+        </div>
+
+        <div className="pitch-mini-avatar-wrap">
+          <div className="pitch-mini-avatar">
+            <PlayerSilhouette posicion={player.posicion} />
+          </div>
+        </div>
+
+        <div className="pitch-mini-name">{shortName}</div>
+
+        {player.capitan && <div className="pitch-mini-capitan">C</div>}
+        {esYo && <div className="pitch-mini-yo-dot" />}
       </div>
     </div>
   );
