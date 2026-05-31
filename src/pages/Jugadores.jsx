@@ -19,7 +19,7 @@ const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
  *  POSE_MAP: [row, col, sheet]  — each position gets a unique pose
  */
 const POSE_MAP = {
-  POR:  [0, 1, 2], // GK horizontal dive (full body)
+  POR:  [0, 0, 2], // GK dive arm up
   LTI:  [0, 3, 1], // full sprint
   LTD:  [1, 1, 2], // jogging with ball
   DFCi: [1, 0, 2], // standing defensive
@@ -34,7 +34,7 @@ const POSE_MAP = {
   SD:   [0, 3, 2], // standing with ball (upright)
   DC:   [0, 2, 2], // kicking
 };
-const POSE_Y_ADJUST = { LTD: -4 };
+const POSE_Y_ADJUST = { LTD: -8 };
 
 const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg' };
 
@@ -49,7 +49,7 @@ function PlayerSilhouette({ posicion }) {
       backgroundSize: '400% 200%',
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
-      filter: 'invert(1) brightness(3) contrast(7)',
+      filter: 'invert(1) brightness(3) contrast(15)',
       opacity: 0.82,
     }} />
   );
@@ -624,31 +624,18 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
       )}
     </div>
     <div className="fut-card-actions">
-      <button
-        className="fut-card-action-btn"
-        onClick={e => { e.stopPropagation(); onEdit(j); }}
-      >
-        Editar
+      <button className="fca-btn" onClick={e => { e.stopPropagation(); onEdit(j); }}>
+        ✎ Editar
       </button>
       <button
-        className={`fut-card-toggle ${j.activo !== false ? 'on' : 'off'}`}
+        className={`fca-btn fca-status ${j.activo !== false ? 'fca-on' : 'fca-off'}`}
         onClick={e => { e.stopPropagation(); onToggle(j); }}
-        title={j.activo !== false ? 'Marcar como inactivo' : 'Reactivar jugador'}
       >
-        <span className="fut-card-toggle-track">
-          <span className="fut-card-toggle-thumb" />
-        </span>
-        <span className="fut-card-toggle-label">
-          {j.activo !== false ? 'Activo' : 'Baja'}
-        </span>
+        {j.activo !== false ? '● Activo' : '○ Baja'}
       </button>
       {onEliminar && (
-        <button
-          className="fut-card-action-btn"
-          onClick={e => { e.stopPropagation(); onEliminar(j); }}
-          style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)' }}
-        >
-          Eliminar
+        <button className="fca-btn fca-del" onClick={e => { e.stopPropagation(); onEliminar(j); }}>
+          ✕
         </button>
       )}
     </div>

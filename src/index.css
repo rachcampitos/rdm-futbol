@@ -963,52 +963,28 @@ input[type="range"]:focus-visible {
 .fut-card-actions {
   display: flex;
   gap: 4px;
-  padding: 4px 0 2px;
-  justify-content: center;
+  padding: 5px 0 3px;
 }
-.fut-card-action-btn {
-  padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.3); color: rgba(255,255,255,0.65);
-  font-size: 10px; font-weight: 700; cursor: pointer;
-  letter-spacing: 0.5px; text-transform: uppercase;
-  font-family: 'Rajdhani', sans-serif;
-  transition: all .15s;
-  min-height: 32px;
-}
-.fut-card-action-btn:hover { border-color: var(--gold); color: var(--gold); }
-.fut-card-action-btn.active { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.1); }
-
-/* ── Activo/Inactivo toggle en FutCard ── */
-.fut-card-toggle {
-  display: flex; align-items: center; gap: 5px;
-  padding: 6px 7px; border-radius: 5px; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; user-select: none;
-  transition: border-color .2s, background .2s;
-  font-family: 'Rajdhani', sans-serif;
-  min-height: 32px;
-  position: relative;
-}
-.fut-card-toggle.on  { border: 1px solid rgba(16,185,129,0.45);  background: rgba(16,185,129,0.10); }
-.fut-card-toggle.off { border: 1px solid rgba(239,68,68,0.40);   background: rgba(239,68,68,0.08); }
-.fut-card-toggle-track {
-  width: 28px; height: 16px; border-radius: 8px;
-  position: relative; flex-shrink: 0;
-  transition: background .2s cubic-bezier(.22,1,.36,1);
-}
-.fut-card-toggle.on  .fut-card-toggle-track { background: #10b981; }
-.fut-card-toggle.off .fut-card-toggle-track { background: rgba(239,68,68,0.55); }
-.fut-card-toggle-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 12px; height: 12px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.35);
-  transition: transform .2s cubic-bezier(.22,1,.36,1);
-}
-.fut-card-toggle.on .fut-card-toggle-thumb { transform: translateX(12px); }
-.fut-card-toggle-label {
+.fca-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 5px;
   font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  font-family: 'Rajdhani', sans-serif;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  transition: all .15s;
+  white-space: nowrap;
+  min-height: 28px;
+  -webkit-tap-highlight-color: transparent;
 }
-.fut-card-toggle.on  .fut-card-toggle-label { color: #10b981; }
-.fut-card-toggle.off .fut-card-toggle-label { color: rgba(239,68,68,0.85); }
+.fca-btn:hover { border-color: rgba(240,192,64,0.6); color: var(--gold); background: rgba(240,192,64,0.06); }
+.fca-on  { border-color: rgba(16,185,129,0.5);  color: #10b981; background: rgba(16,185,129,0.10); }
+.fca-off { border-color: rgba(239,68,68,0.35);  color: rgba(239,68,68,0.7); background: rgba(239,68,68,0.07); }
+.fca-del { flex: 0 0 30px; font-size: 11px; color: rgba(239,68,68,0.55); border-color: rgba(239,68,68,0.28); background: rgba(239,68,68,0.05); }
+.fca-del:hover { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.15); }
 
 /* ── Animations ── */
 @keyframes shuffle {
