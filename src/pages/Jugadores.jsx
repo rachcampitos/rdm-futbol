@@ -20,8 +20,8 @@ const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
  *  POSE_MAP: [row, col, sheet]  — each position gets a unique pose
  */
 const POSE_MAP = {
-  POR:  [0, 0, 2], // GK arm-up diagonal dive
-  LTI:  [0, 3, 1], // full sprint
+  POR:  [0, 2, 3], // GK brazo arriba alcanzando pelota — sheet 3, cuerpo completo
+  LTI:  [1, 0, 3], // dribleo lateral — sheet 3
   LTD:  [1, 1, 2], // jogging with ball
   DFCi: [1, 0, 2], // standing defensive
   DFCd: [1, 1, 1], // lunge / tackle
@@ -33,11 +33,11 @@ const POSE_MAP = {
   EXI:  [0, 0, 1], // shoot / sprint
   EXD:  [1, 2, 2], // dribbling forward
   SD:   [0, 3, 2], // standing with ball (upright)
-  DC:   [0, 1, 3], // kicking — sheet 3, celda limpia sin sangrado
+  DC:   [0, 1, 3], // kicking — sheet 3
 };
 const POSE_Y_ADJUST = { LTD: -8 };
-// scale < 1 → zoom out para poses diagonales que no caben en el recuadro a escala 1:1
-const POSE_SCALE = { POR: 0.85 };
+// scale < 1 → zoom out para eliminar sangrado JPEG en bordes de celda
+const POSE_SCALE = { DC: 0.88 };
 
 const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg', 3: '/silhouettes3.jpg' };
 
