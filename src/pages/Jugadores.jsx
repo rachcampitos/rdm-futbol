@@ -15,11 +15,12 @@ const statPct   = v => ((v - STAT_MIN) / (STAT_MAX - STAT_MIN)) * 100;
 
 /* ── Player silhouette sprites
  *  Sheet 1: silhouettes.jpg  (4×2, row1-col0 = female, excluded)
- *  Sheet 2: silhouettes2.jpg (4×2, all-male: GK poses + field poses)
+ *  Sheet 2: silhouettes2.jpg (4×2, GK arm-up [0,0], GK dive [0,1], field poses)
+ *  Sheet 3: silhouettes3.jpg (4×2, kick [0,1], GK full-dive [0,2], bicycle [1,1], volley [1,2])
  *  POSE_MAP: [row, col, sheet]  — each position gets a unique pose
  */
 const POSE_MAP = {
-  POR:  [0, 0, 2], // GK dive arm up
+  POR:  [0, 0, 2], // GK arm-up diagonal dive
   LTI:  [0, 3, 1], // full sprint
   LTD:  [1, 1, 2], // jogging with ball
   DFCi: [1, 0, 2], // standing defensive
@@ -32,21 +33,29 @@ const POSE_MAP = {
   EXI:  [0, 0, 1], // shoot / sprint
   EXD:  [1, 2, 2], // dribbling forward
   SD:   [0, 3, 2], // standing with ball (upright)
-  DC:   [0, 2, 2], // kicking
+  DC:   [0, 1, 3], // kicking — sheet 3, celda limpia sin sangrado
 };
 const POSE_Y_ADJUST = { LTD: -8 };
+// scale < 1 → zoom out para poses diagonales que no caben en el recuadro a escala 1:1
+const POSE_SCALE = { POR: 0.85 };
 
-const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg' };
+const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg', 3: '/silhouettes3.jpg' };
 
 function PlayerSilhouette({ posicion }) {
   const [row, col, sheet = 1] = POSE_MAP[posicion] ?? [0, 1, 1];
-  const xPct = (col / 3) * 100;
-  const yPct = row * 100 + (POSE_Y_ADJUST[posicion] ?? 0);
+  const scale = POSE_SCALE[posicion] ?? 1;
+  const bsW = (400 * scale).toFixed(2);
+  const bsH = (200 * scale).toFixed(2);
+  // Centra la celda en el contenedor para cualquier escala.
+  // Derivado de: offset = X/100*(containerW - imageW), igualado al margen de centrado.
+  const xPct = ((0.5 - (col + 0.5) * scale) / (1 - 4 * scale) * 100).toFixed(3);
+  const yAdjust = POSE_Y_ADJUST[posicion] ?? 0;
+  const yPct = ((0.5 - (row + 0.5) * scale) / (1 - 2 * scale) * 100 + yAdjust).toFixed(3);
   return (
     <div style={{
       width: '100%', height: '100%',
       backgroundImage: `url(${SPRITE[sheet]})`,
-      backgroundSize: '400% 200%',
+      backgroundSize: `${bsW}% ${bsH}%`,
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
       filter: 'invert(1) brightness(3) contrast(15)',
