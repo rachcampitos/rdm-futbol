@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { doc, updateDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc, increment, deleteField } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   getWeekId, getShortName, getInitials, distribuirEquipos,
@@ -16,7 +16,7 @@ function getFormatoPartido(sizeA, sizeB) {
   return `${sizeA} VS ${sizeB}`;
 }
 
-export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
+export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin, weekId: weekIdProp }) {
   const [animating, setAnimating]           = useState(false);
   const [justRevealed, setJustRevealed]     = useState(false);
   const [formacionA, setFormacionA]         = useState(null);
@@ -27,6 +27,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
   const [cerrandoPartido, setCerrandoPartido] = useState(false);
   const [pickerEquipo, setPickerEquipo]       = useState(null); // null | 'A' | 'B'
 
+  const weekId = weekIdProp ?? getWeekId();
   const puedeActuar = isAdmin || (jugadorActual && ([...((partido?.equipoA) ?? []), ...((partido?.equipoB) ?? [])]).includes(jugadorActual.id));
 
   const confirmados = (partido?.convocados ?? []).filter(c => c.estado === 'confirmado');
@@ -50,6 +51,11 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
     .map(id => jugadores.find(j => j.id === id))
     .filter(Boolean);
 
+  /* Árbitros resueltos desde Firestore IDs */
+  const arbitrosList = (partido?.arbitros ?? [])
+    .map(id => jugadores.find(j => j.id === id))
+    .filter(Boolean);
+
   /* Formaciones activas — preferencia local > guardada en Firestore > default por nJugadores */
   const fA = formacionA ?? partido?.formacionA ?? getFormacionDefault(equipoA.length);
   const fB = formacionB ?? partido?.formacionB ?? getFormacionDefault(equipoB.length);
@@ -60,13 +66,14 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
     setJustRevealed(false);
 
     setTimeout(async () => {
-      const { equipoA: a, equipoB: b, suplentes: s } = distribuirEquipos(jugadoresConfirmados, formatoActivo);
+      const { equipoA: a, equipoB: b, suplentes: s, arbitros: arbs } = distribuirEquipos(jugadoresConfirmados, formatoActivo);
       const defA = getFormacionDefault(a.length);
       const defB = getFormacionDefault(b.length);
-      await updateDoc(doc(db, 'partidos', getWeekId()), {
+      await updateDoc(doc(db, 'partidos', weekId), {
         equipoA: a.map(j => j.id),
         equipoB: b.map(j => j.id),
         suplentes: s.map(j => j.id),
+        arbitros: arbs.map(j => j.id),
         sorteoRealizado: true,
         formatoJugadores: formatoActivo,
         formacionA: defA,
@@ -83,7 +90,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
   }
 
   async function iniciarPartido() {
-    await updateDoc(doc(db, 'partidos', getWeekId()), {
+    await updateDoc(doc(db, 'partidos', weekId), {
       iniciado: true,
       marcadorVivo: { golesA: 0, golesB: 0, goleadores: [] },
     });
@@ -92,7 +99,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
   async function registrarGol(equipo, jugadorId, nombre) {
     const current = partido?.marcadorVivo?.goleadores ?? [];
     const nuevo = [...current, { equipo, jugadorId, nombre }];
-    await updateDoc(doc(db, 'partidos', getWeekId()), {
+    await updateDoc(doc(db, 'partidos', weekId), {
       'marcadorVivo.goleadores': nuevo,
       'marcadorVivo.golesA': nuevo.filter(g => g.equipo === 'A').length,
       'marcadorVivo.golesB': nuevo.filter(g => g.equipo === 'B').length,
@@ -105,7 +112,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
     const idx = [...current].map((g, i) => ({ ...g, i })).reverse().find(g => g.equipo === equipo)?.i;
     if (idx === undefined) return;
     const nuevo = current.filter((_, i) => i !== idx);
-    await updateDoc(doc(db, 'partidos', getWeekId()), {
+    await updateDoc(doc(db, 'partidos', weekId), {
       'marcadorVivo.goleadores': nuevo,
       'marcadorVivo.golesA': nuevo.filter(g => g.equipo === 'A').length,
       'marcadorVivo.golesB': nuevo.filter(g => g.equipo === 'B').length,
@@ -119,7 +126,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
     /* Persistir en Firestore */
     const campo = equipo === 'A' ? 'formacionA' : 'formacionB';
     try {
-      await updateDoc(doc(db, 'partidos', getWeekId()), { [campo]: nueva });
+      await updateDoc(doc(db, 'partidos', weekId), { [campo]: nueva });
     } catch {
       /* si no existe el doc todavía, ignorar — el próximo sorteo lo crea */
     }
@@ -338,14 +345,6 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
                   🔴 Equipo Rojo
                 </button>
               </div>
-              <FormacionSelector
-                equipoA={equipoA}
-                equipoB={equipoB}
-                formacionA={fA}
-                formacionB={fB}
-                onChangeA={f => cambiarFormacion('A', f)}
-                onChangeB={f => cambiarFormacion('B', f)}
-              />
               <LineupView
                 jugadores={lineupEquipo === 'A' ? equipoA : equipoB}
                 formacion={lineupEquipo === 'A' ? fA : fB}
@@ -356,16 +355,26 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
             </>
           )}
 
-          {/* CANCHA view — both teams with overall chips */}
+          {/* CANCHA view — both teams with overall chips + formation selector */}
           {sorteoView === 'cancha' && (
-            <CanchaView
-              equipoA={equipoA}
-              equipoB={equipoB}
-              formacionA={fA}
-              formacionB={fB}
-              justRevealed={justRevealed}
-              jugadorActualId={jugadorActual?.id}
-            />
+            <>
+              <FormacionSelector
+                equipoA={equipoA}
+                equipoB={equipoB}
+                formacionA={fA}
+                formacionB={fB}
+                onChangeA={f => cambiarFormacion('A', f)}
+                onChangeB={f => cambiarFormacion('B', f)}
+              />
+              <CanchaView
+                equipoA={equipoA}
+                equipoB={equipoB}
+                formacionA={fA}
+                formacionB={fB}
+                justRevealed={justRevealed}
+                jugadorActualId={jugadorActual?.id}
+              />
+            </>
           )}
 
           {/* EQUIPOS view */}
@@ -412,9 +421,25 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
             </div>
           )}
 
+          {/* Árbitros — visible en ambas vistas */}
+          {arbitrosList.length > 0 && (
+            <div className="suplentes-panel" style={{ borderColor: 'rgba(124,58,237,0.25)', background: 'rgba(124,58,237,0.04)' }}>
+              <div className="suplentes-header" style={{ color: '#7c3aed' }}>🟣 Árbitro{arbitrosList.length > 1 ? 's' : ''}</div>
+              {arbitrosList.map((j, i) => (
+                <div key={j.id ?? i} className="suplente-row">
+                  <span className="suplente-num">{i + 1}</span>
+                  <span style={{ flex: 1 }}>{j.nombre}</span>
+                  <span className="suplente-pos-badge" style={{ color: '#7c3aed', background: 'rgba(124,58,237,0.15)' }}>
+                    ARB
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Iniciar partido */}
           {puedeActuar && !partido?.iniciado && !partido?.cerrado && (
-            <div style={{ marginTop: 20, textAlign: 'center' }}>
+            <div style={{ marginTop: 28, textAlign: 'center' }}>
               <button
                 className="btn btn-gold"
                 onClick={iniciarPartido}
@@ -541,7 +566,7 @@ export default function Sorteo({ jugadores, partido, jugadorActual, isAdmin }) {
         <CerrarPartidoModal
           jugadoresDelPartido={[...equipoA, ...equipoB]}
           onClose={() => setCerrandoPartido(false)}
-          weekId={getWeekId()}
+          weekId={weekId}
           marcadorVivo={partido?.marcadorVivo}
         />,
         document.body
@@ -618,9 +643,9 @@ function FormacionSelector({ equipoA, equipoB, formacionA, formacionB, onChangeA
    calcularPosicionesCancha
    ───────────────────────────────────────────────────────────── */
 /* Shared tactical SVG field lines */
-function FieldLines() {
+function FieldLines({ className }) {
   return (
-    <svg className="field-svg" viewBox="0 0 100 168" preserveAspectRatio="none">
+    <svg className={`field-svg${className ? ' ' + className : ''}`} viewBox="0 0 100 168" preserveAspectRatio="none">
       <rect x="3" y="3" width="94" height="162" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
       <line x1="3" y1="84" x2="97" y2="84" stroke="rgba(255,255,255,0.7)" strokeWidth="0.5"/>
       <circle cx="50" cy="84" r="12" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="0.5"/>
@@ -657,19 +682,47 @@ function FieldLines() {
 
 /* Cards carousel — one team at a time with full FIFA mini-cards */
 function LineupView({ jugadores, formacion, team, justRevealed, jugadorActualId }) {
-  const raw = aplicarFormacion(jugadores, formacion, false);
+  // isTop=true: posiciones naturales sin espejado de X
+  // Y: distribución lineal en [13, 87] — garantiza gap mínimo entre filas
+  // 108px card en ~554px field = 19.5% half-height; spacing = 74/(n-1) > 19.5% ✓
+  const raw = aplicarFormacion(jugadores, formacion, true);
+  const uniqueYs = [...new Set(raw.map(p => p.y))].sort((a, b) => a - b);
+  const nRows = uniqueYs.length;
+  const yMap = Object.fromEntries(
+    uniqueYs.map((y, i) => [y, 87 - (i / Math.max(nRows - 1, 1)) * 74])
+  );
 
-  // Expand y-range from half-field [~55,94] to full-field [10,90]
-  // so cards spread across the whole pitch like EA FC "My Team" view
-  const ys = raw.map(p => p.y);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const span = maxY - minY || 1;
-  const pos = raw.map(p => ({ ...p, y: ((p.y - minY) / span) * 80 + 10 }));
+  // X: re-distribuir cada fila para garantizar que ninguna card se superponga
+  // 60px card en campo de ~330px = 18.18% de separación mínima entre centros
+  const CARD_W = 18.18;
+  const SAFE_START = 11, SAFE_RANGE = 78; // rango seguro [11%, 89%]
+  const rowIdxs = {};
+  raw.forEach((_, i) => {
+    const key = raw[i].y.toFixed(1);
+    (rowIdxs[key] = rowIdxs[key] ?? []).push(i);
+  });
+  const xFinal = raw.map(p => p.x);
+  Object.values(rowIdxs).forEach(idxs => {
+    const nCol = idxs.length;
+    if (nCol < 2) return;
+    let spacing, x0;
+    if (nCol >= 5) {
+      // Equipo grande: rellena el rango completo aunque haya leve overlap
+      spacing = SAFE_RANGE / (nCol - 1);
+      x0 = SAFE_START;
+    } else {
+      spacing = Math.max(CARD_W, SAFE_RANGE / nCol);
+      x0 = SAFE_START + (SAFE_RANGE - (nCol - 1) * spacing) / 2;
+    }
+    idxs.forEach((idx, i) => { xFinal[idx] = Math.round(x0 + i * spacing); });
+  });
+
+  const pos = raw.map((p, i) => ({ ...p, x: xFinal[i], y: yMap[p.y] }));
 
   return (
     <div className="field-wrap">
-      <div className="field-bg" />
-      <FieldLines />
+      <div className="field-bg field-bg-perspective" />
+      <FieldLines className="field-svg-perspective" />
       {pos.map((p, i) => (
         <MiniPitchCard
           key={`lineup-${p.id ?? i}`}
@@ -689,7 +742,7 @@ function CanchaView({ equipoA, equipoB, formacionA, formacionB, justRevealed, ju
   const posB = aplicarFormacion(equipoB, formacionB, false);
 
   return (
-    <div className="field-wrap">
+    <div className="field-wrap field-wrap-cancha">
       <div className="field-bg" />
       <FieldLines />
       {posA.map((p, i) => (
@@ -814,6 +867,14 @@ function CerrarPartidoModal({ jugadoresDelPartido, onClose, weekId, marcadorVivo
         resultado: { golesA, golesB },
         goleadores,
         cerrado: true,
+        participantesIds: jugadoresDelPartido.map(j => j.id),
+        sorteoRealizado: deleteField(),
+        equipoA: deleteField(),
+        equipoB: deleteField(),
+        iniciado: deleteField(),
+        marcadorVivo: deleteField(),
+        formacionA: deleteField(),
+        formacionB: deleteField(),
       });
       onClose();
     } finally {

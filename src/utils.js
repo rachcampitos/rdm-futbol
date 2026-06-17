@@ -1,7 +1,85 @@
+export const POS_OVERALL = {
+  portero: 78, defensa: 74, mediocampo: 76, delantero: 79, arbitro: 72,
+  POR: 78, ARB: 72,
+  LTI: 73, LTD: 73, DFCi: 75, DFCd: 75,
+  MDC: 76, MC: 77, MOC: 78, MCI: 74, MCD: 74,
+  DC: 80, EXI: 78, EXD: 78, SD: 77,
+};
+
+export function getRating(jugador) {
+  if (jugador.overall) return jugador.overall;
+  const pos = jugador.posicion;
+  if (pos && POS_OVERALL[pos] !== undefined) return POS_OVERALL[pos];
+  const base = { portero: 78, defensa: 74, mediocampo: 76, delantero: 79, arbitro: 72 };
+  const cat = jugador.categoria ?? 'mediocampo';
+  return base[cat] ?? 70;
+}
+
+export function getCardTier(overall) {
+  if (overall >= 85) return 'elite';
+  if (overall >= 75) return 'gold';
+  if (overall >= 65) return 'silver';
+  return 'bronze';
+}
+
+function hashInt(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(33, h) ^ str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+export function calcStats(jugador) {
+  const overall = getRating(jugador);
+  const seed = hashInt(jugador.id ?? jugador.nombre ?? '?');
+  const W = {
+    POR:  [0.74, 0.62, 0.78, 0.72, 0.93, 0.90],
+    LTI:  [0.90, 0.72, 0.85, 0.84, 0.90, 0.86],
+    DTI:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
+    DFC:  [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+    DFCi: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+    DFCd: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+    LTD:  [0.90, 0.74, 0.85, 0.84, 0.90, 0.86],
+    DTD:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
+    MC:   [0.84, 0.82, 0.93, 0.88, 0.80, 0.84],
+    MCD:  [0.80, 0.74, 0.88, 0.82, 0.91, 0.88],
+    MCO:  [0.86, 0.90, 0.95, 0.93, 0.62, 0.80],
+    EXI:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
+    EXD:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
+    SD:   [0.88, 0.95, 0.80, 0.88, 0.50, 0.84],
+    DC:   [0.85, 0.97, 0.77, 0.86, 0.46, 0.87],
+    ARB:  [0.72, 0.45, 0.82, 0.80, 0.88, 0.92],
+  };
+  const w = W[jugador.posicion] ?? [0.88, 0.88, 0.88, 0.88, 0.75, 0.85];
+  function stat(wi, offset) {
+    const r = ((seed * (offset * 2654435761)) >>> 0) % 8;
+    return Math.min(99, Math.round(overall * wi + r));
+  }
+  return {
+    pac: jugador.pac ?? stat(w[0], 1),
+    tir: jugador.tir ?? stat(w[1], 2),
+    pas: jugador.pas ?? stat(w[2], 3),
+    reg: jugador.reg ?? stat(w[3], 4),
+    def: jugador.def ?? stat(w[4], 5),
+    fis: jugador.fis ?? stat(w[5], 6),
+  };
+}
+
 export function getWeekId() {
   const now = new Date();
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now);
+  monday.setDate(diff);
+  const yyyy = monday.getFullYear();
+  const mm = String(monday.getMonth() + 1).padStart(2, '0');
+  const dd = String(monday.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+export function getPrevWeekId() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1) - 7;
   const monday = new Date(now);
   monday.setDate(diff);
   const yyyy = monday.getFullYear();
@@ -32,6 +110,7 @@ export const POSICION_CONFIG = {
   defensa:     { label: 'DEF', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
   mediocampo:  { label: 'MED', color: '#10b981', bg: 'rgba(16,185,129,0.15)' },
   delantero:   { label: 'DEL', color: '#ef4444', bg: 'rgba(239,68,68,0.15)'  },
+  arbitro:     { label: 'ARB', color: '#7c3aed', bg: 'rgba(124,58,237,0.15)' },
 };
 
 /* ── Detailed FIFA-style positions ── */
@@ -54,6 +133,8 @@ export const POSICION_DETALLADA = {
   EXI:  { label: 'EXI',  nombre: 'Extremo Izquierdo',    categoria: 'delantero',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
   EXD:  { label: 'EXD',  nombre: 'Extremo Derecho',      categoria: 'delantero',  color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
   SD:   { label: 'SD',   nombre: 'Segunda Delantera',    categoria: 'delantero',  color: '#fca5a5', bg: 'rgba(252,165,165,0.15)' },
+  // Árbitro
+  ARB:  { label: 'ARB',  nombre: 'Árbitro',              categoria: 'arbitro',    color: '#7c3aed', bg: 'rgba(124,58,237,0.15)' },
 };
 
 /* Groups for the onboarding / Jugadores position picker UI */
@@ -73,6 +154,10 @@ export const POSICION_GRUPOS = [
   {
     grupo: 'Delantero',
     posiciones: ['EXI', 'SD', 'DC', 'EXD'],
+  },
+  {
+    grupo: 'Árbitro',
+    posiciones: ['ARB'],
   },
 ];
 
@@ -110,11 +195,15 @@ export function formatFecha(isoDate) {
 }
 
 export function distribuirEquipos(jugadores, jugandoCadaEquipo = null) {
-  const n = jugandoCadaEquipo ?? Math.floor(jugadores.length / 2);
-  const nJugando = Math.min(n * 2, jugadores.length);
+  // Árbitros no participan en el sorteo — se separan primero
+  const arbitros    = jugadores.filter(j => getCategoriaBase(j.posicion) === 'arbitro');
+  const jugadoresEf = jugadores.filter(j => getCategoriaBase(j.posicion) !== 'arbitro');
+
+  const n = jugandoCadaEquipo ?? Math.floor(jugadoresEf.length / 2);
+  const nJugando = Math.min(n * 2, jugadoresEf.length);
 
   // Random cut: shuffle all, first nJugando play, rest are suplentes
-  const shuffledAll = shuffle([...jugadores]);
+  const shuffledAll = shuffle([...jugadoresEf]);
   const jugando   = shuffledAll.slice(0, nJugando);
   const suplentes = shuffledAll.slice(nJugando);
 
@@ -169,7 +258,7 @@ export function distribuirEquipos(jugadores, jugandoCadaEquipo = null) {
     }
   }
 
-  return { equipoA, equipoB, suplentes };
+  return { equipoA, equipoB, suplentes, arbitros };
 }
 
 function shuffle(arr) {
@@ -386,6 +475,7 @@ export const FORMACIONES = {
   // ── Sin portero (fútbol 7 / 6) ───────────────────────
   // 2 líneas sin portero: DEF en su tercio, DEL en su mitad máx 45/55
   '4-3': [
+    { n: 1, cat: 'portero',    y_a:  6, y_b: 94 },
     { n: 4, cat: 'defensa',    y_a: 20, y_b: 80 },
     { n: 3, cat: 'delantero',  y_a: 45, y_b: 55 },
   ],
