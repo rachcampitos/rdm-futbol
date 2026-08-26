@@ -6,13 +6,69 @@ export const POS_OVERALL = {
   DC: 80, EXI: 78, EXD: 78, SD: 77,
 };
 
+// Stats por defecto al registrarse (mismos valores que STICKER_STATS en
+// Onboarding.jsx, con las claves en el formato pac/tir/pas/reg/def/fis).
+// Sirve de referencia en getRating() para saber cuánto subió o bajó el
+// overall de un jugador respecto a sus stats iniciales.
+const POSICION_STATS_BASE = {
+  POR:  { pac: 55, tir: 30, pas: 52, reg: 48, def: 82, fis: 75 },
+  DFCi: { pac: 68, tir: 40, pas: 60, reg: 54, def: 82, fis: 80 },
+  DFCd: { pac: 68, tir: 40, pas: 60, reg: 54, def: 82, fis: 80 },
+  LTI:  { pac: 82, tir: 55, pas: 70, reg: 70, def: 72, fis: 74 },
+  LTD:  { pac: 82, tir: 55, pas: 70, reg: 70, def: 72, fis: 74 },
+  MDC:  { pac: 70, tir: 52, pas: 76, reg: 64, def: 78, fis: 80 },
+  MC:   { pac: 74, tir: 65, pas: 82, reg: 74, def: 62, fis: 72 },
+  MOC:  { pac: 76, tir: 74, pas: 82, reg: 80, def: 44, fis: 64 },
+  MCI:  { pac: 80, tir: 68, pas: 78, reg: 78, def: 52, fis: 66 },
+  MCD:  { pac: 80, tir: 68, pas: 78, reg: 78, def: 52, fis: 66 },
+  DC:   { pac: 80, tir: 86, pas: 66, reg: 78, def: 32, fis: 76 },
+  EXI:  { pac: 90, tir: 78, pas: 70, reg: 86, def: 30, fis: 66 },
+  EXD:  { pac: 90, tir: 78, pas: 70, reg: 86, def: 30, fis: 66 },
+  SD:   { pac: 78, tir: 80, pas: 74, reg: 76, def: 40, fis: 68 },
+};
+
+// Peso de cada atributo (pac,tir,pas,reg,def,fis) según qué tan determinante
+// es para esa posición — se usa para derivar stats "de relleno" a partir del
+// overall (calcStats), cuando un jugador aún no tiene alguna stat guardada.
+const POSICION_STAT_WEIGHTS = {
+  POR:  [0.74, 0.62, 0.78, 0.72, 0.93, 0.90],
+  LTI:  [0.90, 0.72, 0.85, 0.84, 0.90, 0.86],
+  DTI:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
+  DFC:  [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+  DFCi: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+  DFCd: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
+  LTD:  [0.90, 0.74, 0.85, 0.84, 0.90, 0.86],
+  DTD:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
+  MC:   [0.84, 0.82, 0.93, 0.88, 0.80, 0.84],
+  MCD:  [0.80, 0.74, 0.88, 0.82, 0.91, 0.88],
+  MCO:  [0.86, 0.90, 0.95, 0.93, 0.62, 0.80],
+  EXI:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
+  EXD:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
+  SD:   [0.88, 0.95, 0.80, 0.88, 0.50, 0.84],
+  DC:   [0.85, 0.97, 0.77, 0.86, 0.46, 0.87],
+  ARB:  [0.72, 0.45, 0.82, 0.80, 0.88, 0.92],
+};
+const STAT_KEYS_ORDER = ['pac', 'tir', 'pas', 'reg', 'def', 'fis'];
+
 export function getRating(jugador) {
+  // Si el jugador ya tiene sus 6 stats (autogeneradas al registrarse o
+  // ajustadas a mano en "Editar perfil") y hay una base conocida para su
+  // posición, el overall parte de la base fija de esa posición y se mueve
+  // según cuánto subió o bajó el promedio de sus stats respecto al default.
+  // Así el sorteo balancea con el nivel real que cada uno se puso — sin que
+  // el overall cambie de golpe por reordenar puntos dentro del mismo total.
+  const pos  = jugador.posicion;
+  const base = POSICION_STATS_BASE[pos];
+  if (base && STAT_KEYS_ORDER.every(k => typeof jugador[k] === 'number')) {
+    const baseOverall = POS_OVERALL[pos] ?? 75;
+    const avgDelta = STAT_KEYS_ORDER.reduce((s, k) => s + (jugador[k] - base[k]), 0) / STAT_KEYS_ORDER.length;
+    return Math.max(40, Math.min(99, Math.round(baseOverall + avgDelta)));
+  }
   if (jugador.overall) return jugador.overall;
-  const pos = jugador.posicion;
   if (pos && POS_OVERALL[pos] !== undefined) return POS_OVERALL[pos];
-  const base = { portero: 78, defensa: 74, mediocampo: 76, delantero: 79, arbitro: 72 };
+  const base2 = { portero: 78, defensa: 74, mediocampo: 76, delantero: 79, arbitro: 72 };
   const cat = jugador.categoria ?? 'mediocampo';
-  return base[cat] ?? 70;
+  return base2[cat] ?? 70;
 }
 
 export function getCardTier(overall) {
@@ -31,25 +87,7 @@ function hashInt(str) {
 export function calcStats(jugador) {
   const overall = getRating(jugador);
   const seed = hashInt(jugador.id ?? jugador.nombre ?? '?');
-  const W = {
-    POR:  [0.74, 0.62, 0.78, 0.72, 0.93, 0.90],
-    LTI:  [0.90, 0.72, 0.85, 0.84, 0.90, 0.86],
-    DTI:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    DFC:  [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCi: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCd: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    LTD:  [0.90, 0.74, 0.85, 0.84, 0.90, 0.86],
-    DTD:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    MC:   [0.84, 0.82, 0.93, 0.88, 0.80, 0.84],
-    MCD:  [0.80, 0.74, 0.88, 0.82, 0.91, 0.88],
-    MCO:  [0.86, 0.90, 0.95, 0.93, 0.62, 0.80],
-    EXI:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    EXD:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    SD:   [0.88, 0.95, 0.80, 0.88, 0.50, 0.84],
-    DC:   [0.85, 0.97, 0.77, 0.86, 0.46, 0.87],
-    ARB:  [0.72, 0.45, 0.82, 0.80, 0.88, 0.92],
-  };
-  const w = W[jugador.posicion] ?? [0.88, 0.88, 0.88, 0.88, 0.75, 0.85];
+  const w = POSICION_STAT_WEIGHTS[jugador.posicion] ?? [0.88, 0.88, 0.88, 0.88, 0.75, 0.85];
   function stat(wi, offset) {
     const r = ((seed * (offset * 2654435761)) >>> 0) % 8;
     return Math.min(99, Math.round(overall * wi + r));
