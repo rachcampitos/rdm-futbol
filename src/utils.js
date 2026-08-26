@@ -202,58 +202,78 @@ export function distribuirEquipos(jugadores, jugandoCadaEquipo = null) {
   const n = jugandoCadaEquipo ?? Math.floor(jugadoresEf.length / 2);
   const nJugando = Math.min(n * 2, jugadoresEf.length);
 
-  // Random cut: shuffle all, first nJugando play, rest are suplentes
+  // Quién juega vs suplente sigue siendo aleatorio (rotación, no depende del nivel)
   const shuffledAll = shuffle([...jugadoresEf]);
   const jugando   = shuffledAll.slice(0, nJugando);
   const suplentes = shuffledAll.slice(nJugando);
 
-  // Position-aware A/B split within the playing group
+  // Cada grupo posicional ordenado por rating (overall) descendente — insumo del draft
   const grupos = {
-    portero:    shuffle(jugando.filter(j => getCategoriaBase(j.posicion) === 'portero')),
-    defensa:    shuffle(jugando.filter(j => getCategoriaBase(j.posicion) === 'defensa')),
-    mediocampo: shuffle(jugando.filter(j => getCategoriaBase(j.posicion) === 'mediocampo')),
-    delantero:  shuffle(jugando.filter(j => getCategoriaBase(j.posicion) === 'delantero')),
+    portero:    jugando.filter(j => getCategoriaBase(j.posicion) === 'portero').sort((a, b) => getRating(b) - getRating(a)),
+    defensa:    jugando.filter(j => getCategoriaBase(j.posicion) === 'defensa').sort((a, b) => getRating(b) - getRating(a)),
+    mediocampo: jugando.filter(j => getCategoriaBase(j.posicion) === 'mediocampo').sort((a, b) => getRating(b) - getRating(a)),
+    delantero:  jugando.filter(j => getCategoriaBase(j.posicion) === 'delantero').sort((a, b) => getRating(b) - getRating(a)),
   };
 
   const equipoA = [];
   const equipoB = [];
+  let sumA = 0, sumB = 0;
 
+  // Draft parejo por rating: dentro de cada grupo posicional se arman pares
+  // (mejor disponible + siguiente); el par se reparte entre ambos equipos y el
+  // mejor del par va siempre al equipo que hasta ese momento suma menos overall.
+  // Así se mantiene la misma cantidad de jugadores por posición en ambos lados
+  // (como antes) pero además el nivel total queda parejo.
   for (const pos of ['portero', 'defensa', 'mediocampo', 'delantero']) {
-    grupos[pos].forEach((j, i) => {
-      if (i % 2 === 0) equipoA.push(j);
-      else equipoB.push(j);
-    });
+    const lista = grupos[pos];
+    for (let i = 0; i < lista.length; i += 2) {
+      const mejor   = lista[i];
+      const segundo = lista[i + 1] ?? null;
+      if (sumA <= sumB) {
+        equipoA.push(mejor); sumA += getRating(mejor);
+        if (segundo) { equipoB.push(segundo); sumB += getRating(segundo); }
+      } else {
+        equipoB.push(mejor); sumB += getRating(mejor);
+        if (segundo) { equipoA.push(segundo); sumA += getRating(segundo); }
+      }
+    }
   }
 
-  while (equipoA.length - equipoB.length > 1) equipoB.push(equipoA.pop());
-  while (equipoB.length - equipoA.length > 1) equipoA.push(equipoB.pop());
+  while (equipoA.length - equipoB.length > 1) {
+    const j = equipoA.pop(); sumA -= getRating(j);
+    equipoB.push(j); sumB += getRating(j);
+  }
+  while (equipoB.length - equipoA.length > 1) {
+    const j = equipoB.pop(); sumB -= getRating(j);
+    equipoA.push(j); sumA += getRating(j);
+  }
 
-  // Captains must be on opposite teams — if both ended up on the same team, swap one out
+  // Captains must be on opposite teams — if both ended up on the same team,
+  // swap the second captain with the closest-rated non-captain on the other
+  // team, para mover lo menos posible el balance de nivel ya logrado.
   const capitanes = jugando.filter(j => j.capitan);
   if (capitanes.length >= 2) {
     const capEnA = capitanes.filter(j => equipoA.some(a => a.id === j.id));
+    const capEnB = capitanes.filter(j => equipoB.some(b => b.id === j.id));
     if (capEnA.length > 1) {
-      // Move second captain from A to B, swap with a non-captain in B
       const toMove = capEnA[1];
       const idxA   = equipoA.findIndex(j => j.id === toMove.id);
-      const swapIdx = equipoB.findIndex(j => !j.capitan);
-      if (swapIdx !== -1) {
-        const swapped = equipoB[swapIdx];
-        equipoA[idxA]   = swapped;
+      const swapTarget = [...equipoB.filter(j => !j.capitan)]
+        .sort((a, b) => Math.abs(getRating(a) - getRating(toMove)) - Math.abs(getRating(b) - getRating(toMove)))[0];
+      if (swapTarget) {
+        const swapIdx = equipoB.findIndex(j => j.id === swapTarget.id);
+        equipoA[idxA]   = swapTarget;
         equipoB[swapIdx] = toMove;
       }
-    } else {
-      const capEnB = capitanes.filter(j => equipoB.some(b => b.id === j.id));
-      if (capEnB.length > 1) {
-        // Move second captain from B to A, swap with a non-captain in A
-        const toMove = capEnB[1];
-        const idxB   = equipoB.findIndex(j => j.id === toMove.id);
-        const swapIdx = equipoA.findIndex(j => !j.capitan);
-        if (swapIdx !== -1) {
-          const swapped = equipoA[swapIdx];
-          equipoB[idxB]   = swapped;
-          equipoA[swapIdx] = toMove;
-        }
+    } else if (capEnB.length > 1) {
+      const toMove = capEnB[1];
+      const idxB   = equipoB.findIndex(j => j.id === toMove.id);
+      const swapTarget = [...equipoA.filter(j => !j.capitan)]
+        .sort((a, b) => Math.abs(getRating(a) - getRating(toMove)) - Math.abs(getRating(b) - getRating(toMove)))[0];
+      if (swapTarget) {
+        const swapIdx = equipoA.findIndex(j => j.id === swapTarget.id);
+        equipoB[idxB]   = swapTarget;
+        equipoA[swapIdx] = toMove;
       }
     }
   }
