@@ -1,7 +1,8 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, addDoc, serverTimestamp, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import PartidoExtra from '../components/PartidoExtra';
 
 const CLOUDINARY_CLOUD = 'dml5vqnmu';
 const CLOUDINARY_PRESET = 'rdm-futbol-pagos';
@@ -20,10 +21,11 @@ async function uploadToCloudinary(file) {
 }
 import { getWeekId, getInitials, formatFecha, getPosicionConfig, getPosicionLabel, calcStats, getRating, getCardTier } from '../utils';
 import JugadorModal from '../components/JugadorModal';
+import { PlayerSilhouette } from '../components/PlayerSilhouette';
 
 
 
-export default function EstasSemana({ jugadores, partido, jugadorActual, penaltis = [], onEditarPerfil, isAdmin, rachasMap = {}, weeklyMvpId }) {
+export default function EstasSemana({ jugadores, partido, jugadorActual, penaltis = [], onEditarPerfil, isAdmin, rachasMap = {}, weeklyMvpId, weekId: weekIdProp, partidoExtra }) {
   const [cuotaEdit, setCuotaEdit]         = useState(false);
   const [cuotaInput, setCuotaInput]       = useState('');
   const [cuotaError, setCuotaError]       = useState('');
@@ -41,9 +43,24 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
   const adminFileInputRef                 = useRef(null);
   const mapaFileInputRef                  = useRef(null);
 
-  const weekId   = getWeekId();
-  const cuota    = partido?.cuota ?? 5000;
-  const convocados = partido?.convocados ?? [];
+  const _partidoWeekId = weekIdProp ?? getWeekId();
+  const isPartidoCerrado = partido?.cerrado === true;
+  // When the active partido is closed, Esta Semana shows the current (upcoming) week
+  const weekId = isPartidoCerrado ? getWeekId() : _partidoWeekId;
+
+  // Local real-time listener for the upcoming week when the active partido is closed
+  const [nextWeekPartido, setNextWeekPartido] = useState(null);
+  useEffect(() => {
+    if (!isPartidoCerrado) { setNextWeekPartido(null); return; }
+    const unsub = onSnapshot(doc(db, 'partidos', weekId), snap => {
+      setNextWeekPartido(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    });
+    return unsub;
+  }, [isPartidoCerrado, weekId]);
+
+  const efectivoPartido = isPartidoCerrado ? nextWeekPartido : partido;
+  const cuota    = efectivoPartido?.cuota ?? 19;
+  const convocados = efectivoPartido?.convocados ?? [];
 
   const confirmados = convocados.filter(c => c.estado === 'confirmado');
   const pagados     = convocados.filter(c => c.pagado);
@@ -59,15 +76,18 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     ? activos.find(j => j.id === jugadorActual.id) ?? null
     : null;
 
+
   const miConv       = miJugador ? convocadoMap[miJugador.id] : null;
   const yoConfirmado = miConv?.estado === 'confirmado';
   const yoPague      = miConv?.pagado === true;
 
   async function ensurePartido() {
-    if (!partido) {
+    if (!efectivoPartido) {
+      const snap = await getDoc(doc(db, 'partidos', weekId));
+      if (snap.exists()) return;
       await setDoc(doc(db, 'partidos', weekId), {
         fecha: weekId,
-        cuota: 5000,
+        cuota: 19,
         convocados: [],
         equipoA: [],
         equipoB: [],
@@ -81,7 +101,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     if (!miJugador) return;
     await ensurePartido();
     const ref  = doc(db, 'partidos', weekId);
-    const base = partido?.convocados ?? [];
+    const base = efectivoPartido?.convocados ?? [];
     const idx  = base.findIndex(c => c.jugadorId === miJugador.id);
 
     let nuevos;
@@ -93,14 +113,13 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         posicion: miJugador.posicion,
         estado: 'confirmado',
         pagado: false,
-        confirmedAt: serverTimestamp(),
       }];
     } else if (base[idx].estado === 'confirmado') {
       // Was confirmed → remove (baja)
       nuevos = base.filter((_, i) => i !== idx);
     } else {
       // Was baja → confirm again
-      nuevos = base.map((c, i) => i === idx ? { ...c, estado: 'confirmado', confirmedAt: serverTimestamp() } : c);
+      nuevos = base.map((c, i) => i === idx ? { ...c, estado: 'confirmado' } : c);
     }
     await updateDoc(ref, { convocados: nuevos });
   }
@@ -108,7 +127,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
   async function toggleMiPago() {
     if (!miJugador || !miConv || !yoConfirmado) return;
     const ref  = doc(db, 'partidos', weekId);
-    const base = partido?.convocados ?? [];
+    const base = efectivoPartido?.convocados ?? [];
     const idx  = base.findIndex(c => c.jugadorId === miJugador.id);
     if (idx === -1) return;
     const nuevos = base.map((c, i) => i === idx ? { ...c, pagado: !c.pagado } : c);
@@ -120,7 +139,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     setSubiendo(true);
     try {
       const url  = await uploadToCloudinary(file);
-      const base = partido?.convocados ?? [];
+      const base = efectivoPartido?.convocados ?? [];
       const idx  = base.findIndex(c => c.jugadorId === miJugador.id);
       if (idx !== -1) {
         const nuevos = base.map((c, i) => i === idx ? { ...c, pagoUrl: url } : c);
@@ -140,7 +159,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
     setSubiendoAdmin(true);
     try {
       const url  = await uploadToCloudinary(file);
-      const base = partido?.convocados ?? [];
+      const base = efectivoPartido?.convocados ?? [];
       const idx  = base.findIndex(c => c.jugadorId === jugadorViendo.id);
       if (idx !== -1) {
         const nuevos = base.map((c, i) => i === idx ? { ...c, pagoUrl: url } : c);
@@ -190,9 +209,9 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
   }
 
   function abrirEditPartido() {
-    setFechaInput(partido?.fechaTexto ?? '');
-    setHoraInput(partido?.horaTexto ?? '9 PM');
-    setCanchaInput(partido?.cancha ?? '');
+    setFechaInput(efectivoPartido?.fechaTexto ?? '');
+    setHoraInput(efectivoPartido?.horaTexto ?? '9 PM');
+    setCanchaInput(efectivoPartido?.cancha ?? '');
     setPartidoEdit(true);
   }
 
@@ -210,7 +229,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
 
   function copiarConvocatoria() {
     const baseUrl = `${window.location.origin}${window.location.pathname}`;
-    const fecha = partido?.fechaTexto ? `${partido.fechaTexto}${partido.horaTexto ? ` · ${partido.horaTexto}` : ''}` : 'esta semana';
+    const fecha = efectivoPartido?.fechaTexto ? `${efectivoPartido.fechaTexto}${efectivoPartido.horaTexto ? ` · ${efectivoPartido.horaTexto}` : ''}` : 'esta semana';
     const lines = activos.map(j => `• ${j.nombre} → ${baseUrl}?uid=${j.id}`);
     const msg = `⚽ *RDM Fútbol* — ${fecha}\nConfirma tu asistencia:\n\n${lines.join('\n')}`;
     navigator.clipboard?.writeText(msg).then(() => {
@@ -265,6 +284,13 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         Esta <span>Semana</span>
       </div>
 
+      {/* ── PARTIDO EXTRA ── */}
+      <PartidoExtra
+        partidoExtra={partidoExtra}
+        jugadorActual={jugadorActual}
+        isAdmin={isAdmin}
+      />
+
       {/* ── PRÓXIMO PARTIDO ── */}
       <div className="week-card" style={{ marginBottom: 14, padding: '14px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -284,30 +310,30 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
           </button>
         </div>
 
-        {partido?.fechaTexto ? (
+        {efectivoPartido?.fechaTexto ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{
               fontFamily: 'Bebas Neue, Rajdhani, sans-serif',
               fontSize: 26, fontWeight: 400, letterSpacing: 1,
               color: 'var(--gold)', lineHeight: 1,
             }}>
-              {partido.fechaTexto}
+              {efectivoPartido.fechaTexto}
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 2 }}>
-              {partido.horaTexto && (
+              {efectivoPartido.horaTexto && (
                 <span style={{
                   fontSize: 12, fontWeight: 700, color: 'var(--text)',
                   fontFamily: 'Rajdhani, sans-serif', letterSpacing: 0.5,
                 }}>
-                  🕐 {partido.horaTexto}
+                  🕐 {efectivoPartido.horaTexto}
                 </span>
               )}
-              {partido.cancha && (
+              {efectivoPartido.cancha && (
                 <span style={{
                   fontSize: 12, fontWeight: 600, color: 'var(--text2)',
                   fontFamily: 'Rajdhani, sans-serif',
                 }}>
-                  📍 {partido.cancha}
+                  📍 {efectivoPartido.cancha}
                 </span>
               )}
             </div>
@@ -330,13 +356,13 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
             style={{ display: 'none' }}
             onChange={e => { const f = e.target.files?.[0]; if (f) subirMapa(f); e.target.value = ''; }}
           />
-          {partido?.mapaUrl ? (
+          {efectivoPartido?.mapaUrl ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 onClick={() => setMapaExpanded(true)}
                 style={{ padding: 0, border: '2px solid rgba(240,192,64,0.35)', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'none', flexShrink: 0 }}
               >
-                <img src={partido.mapaUrl} alt="Mapa cancha" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
+                <img src={efectivoPartido.mapaUrl} alt="Mapa cancha" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
               </button>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 5 }}>
@@ -365,13 +391,13 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         </div>
 
         {/* Mapa expanded */}
-        {mapaExpanded && partido?.mapaUrl && createPortal(
+        {mapaExpanded && efectivoPartido?.mapaUrl && createPortal(
           <div
             style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
             onClick={() => setMapaExpanded(false)}
           >
             <img
-              src={partido.mapaUrl}
+              src={efectivoPartido.mapaUrl}
               alt="Mapa cancha"
               style={{ maxWidth: '100%', maxHeight: '85dvh', borderRadius: 12, objectFit: 'contain' }}
               onClick={e => e.stopPropagation()}
@@ -644,18 +670,7 @@ export default function EstasSemana({ jugadores, partido, jugadorActual, penalti
         </>
       )}
 
-      {/* ── SECCIÓN C: VOTACIÓN MVP ── */}
-      {partido?.cerrado && (
-        <VotacionMvp
-          partido={partido}
-          jugadores={jugadores}
-          miJugadorId={miJugador?.id}
-          weekId={weekId}
-          weeklyMvpId={weeklyMvpId}
-        />
-      )}
-
-      {/* ── SECCIÓN D: CUOTA ── */}
+      {/* ── SECCIÓN C: CUOTA ── */}
       <div className="section-label" style={{ marginTop: 20 }}>Cuota semanal</div>
       <div className="week-card" style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: cuotaEdit ? 10 : 0 }}>
@@ -739,8 +754,8 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
               <div className="fut-card-flag">🇵🇪</div>
             </div>
             <div className="fut-card-avatar-wrap">
-              <div className="fut-card-avatar" style={{ width: 68, height: 68, fontSize: 24 }}>
-                {getInitials(jugador.nombre)}
+              <div className="fut-card-avatar">
+                <PlayerSilhouette posicion={jugador.posicion} />
               </div>
             </div>
             <div className="fut-card-name">{jugador.nombre.split(' ')[0]}</div>
@@ -903,9 +918,209 @@ function MiTarjeta({ jugador, confirmado, pague, pagoUrl, subiendo, onToggleAsis
   );
 }
 
-function VotacionMvp({ partido, jugadores, miJugadorId, weekId, weeklyMvpId }) {
+export function MvpRevealOverlay({ jugador, votos, totalVotantes, onClose }) {
+  const overall  = getRating(jugador);
+  const stats    = calcStats(jugador);
+  const posLabel = getPosicionLabel(jugador.posicion);
+  const nombre   = jugador.nombre.split(' ')[0];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(4,13,33,0.97)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '32px 24px',
+      animation: 'mvpFadeIn 0.4s ease',
+    }}>
+      {/* Glow blob */}
+      <div style={{
+        position: 'absolute', width: 320, height: 320, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, transparent 70%)',
+        pointerEvents: 'none', animation: 'mvpPulse 2.8s ease-in-out infinite',
+      }} />
+
+      {/* Lightning */}
+      <div style={{ fontSize: 44, marginBottom: 8, animation: 'mvpPop 0.5s cubic-bezier(0.22,1,0.36,1)', position: 'relative' }}>⚡</div>
+
+      {/* Title */}
+      <div style={{
+        fontFamily: 'Bebas Neue, Rajdhani, sans-serif',
+        fontSize: 30, letterSpacing: 5,
+        color: '#ef4444', textAlign: 'center',
+        textShadow: '0 0 24px rgba(239,68,68,0.7)',
+        marginBottom: 4, position: 'relative',
+        animation: 'mvpSlideDown 0.45s ease 0.1s both',
+      }}>
+        JUGADOR DEL PARTIDO
+      </div>
+      <div style={{
+        fontFamily: 'Rajdhani, sans-serif', fontSize: 11, letterSpacing: 2,
+        color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase',
+        marginBottom: 26, animation: 'mvpSlideDown 0.45s ease 0.18s both',
+      }}>
+        La comunidad ha votado
+      </div>
+
+      {/* Card */}
+      <div style={{ animation: 'mvpCardDrop 0.55s cubic-bezier(0.22,1,0.36,1) 0.12s both', position: 'relative', zIndex: 1 }}>
+        <div className="fut-card fut-card-inform" style={{ width: 164, height: 245, borderRadius: 14 }}>
+          <div className="fut-card-inner">
+            <div className="fut-card-top">
+              <div>
+                <div className="fut-card-overall">{overall}</div>
+                <div className="fut-card-pos">{posLabel}</div>
+              </div>
+              <div className="fut-card-flag">🇵🇪</div>
+            </div>
+            <div className="fut-card-avatar-wrap">
+              <div className="fut-card-avatar">
+                <PlayerSilhouette posicion={jugador.posicion} />
+              </div>
+            </div>
+            <div className="fut-card-name">{nombre}</div>
+            <div className="fut-card-divider" />
+            <div className="fut-card-stats">
+              {[['PAC',stats.pac],['TIR',stats.tir],['PAS',stats.pas],['REG',stats.reg],['DEF',stats.def],['FIS',stats.fis]].map(([lbl,val]) => (
+                <div key={lbl} className="fut-card-stat">
+                  <div className="fut-card-stat-num">{val}</div>
+                  <div className="fut-card-stat-label">{lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vote count */}
+      {votos > 0 && (
+        <div style={{
+          marginTop: 20, fontFamily: 'Rajdhani, sans-serif',
+          fontSize: 14, fontWeight: 700, letterSpacing: 0.5,
+          color: 'rgba(255,255,255,0.65)', textAlign: 'center',
+          animation: 'mvpSlideDown 0.45s ease 0.4s both',
+        }}>
+          {votos} de {totalVotantes} jugador{totalVotantes !== 1 ? 'es' : ''} votaron por ti
+        </div>
+      )}
+
+      <button
+        className="btn btn-gold"
+        style={{ marginTop: 28, width: '100%', maxWidth: 240, animation: 'mvpSlideDown 0.45s ease 0.5s both' }}
+        onClick={onClose}
+      >
+        ¡Qué honor!
+      </button>
+    </div>
+  );
+}
+
+export function GoleadorRevealOverlay({ jugador, goles, onClose }) {
+  const overall  = getRating(jugador);
+  const stats    = calcStats(jugador);
+  const posLabel = getPosicionLabel(jugador.posicion);
+  const nombre   = jugador.nombre.split(' ')[0];
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(4,13,33,0.97)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '32px 24px',
+      animation: 'mvpFadeIn 0.4s ease',
+    }}>
+      {/* Glow dorado */}
+      <div style={{
+        position: 'absolute', width: 320, height: 320, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(240,192,64,0.28) 0%, transparent 70%)',
+        pointerEvents: 'none', animation: 'mvpPulse 2.8s ease-in-out infinite',
+      }} />
+
+      <div style={{ fontSize: 44, marginBottom: 8, animation: 'mvpPop 0.5s cubic-bezier(0.22,1,0.36,1)', position: 'relative' }}>⚽</div>
+
+      <div style={{
+        fontFamily: 'Bebas Neue, Rajdhani, sans-serif',
+        fontSize: 30, letterSpacing: 5,
+        color: '#f0c040', textAlign: 'center',
+        textShadow: '0 0 24px rgba(240,192,64,0.7)',
+        marginBottom: 4, position: 'relative',
+        animation: 'mvpSlideDown 0.45s ease 0.1s both',
+      }}>
+        GOLEADOR DEL PARTIDO
+      </div>
+      <div style={{
+        fontFamily: 'Rajdhani, sans-serif', fontSize: 11, letterSpacing: 2,
+        color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase',
+        marginBottom: 26, animation: 'mvpSlideDown 0.45s ease 0.18s both',
+      }}>
+        {goles} {goles === 1 ? 'gol anotado' : 'goles anotados'} esta semana
+      </div>
+
+      <div style={{ animation: 'mvpCardDrop 0.55s cubic-bezier(0.22,1,0.36,1) 0.12s both', position: 'relative', zIndex: 1 }}>
+        <div className={`fut-card fut-card-${jugador.cardVariant ?? getCardTier(overall)}`} style={{ width: 164, height: 245, borderRadius: 14 }}>
+          <div className="fut-card-inner">
+            <div className="fut-card-top">
+              <div>
+                <div className="fut-card-overall">{overall}</div>
+                <div className="fut-card-pos">{posLabel}</div>
+              </div>
+              <div className="fut-card-flag">🇵🇪</div>
+            </div>
+            <div className="fut-card-avatar-wrap">
+              <div className="fut-card-avatar">
+                <PlayerSilhouette posicion={jugador.posicion} />
+              </div>
+            </div>
+            <div className="fut-card-name">{nombre}</div>
+            <div className="fut-card-divider" />
+            <div className="fut-card-stats">
+              {[['PAC',stats.pac],['TIR',stats.tir],['PAS',stats.pas],['REG',stats.reg],['DEF',stats.def],['FIS',stats.fis]].map(([lbl,val]) => (
+                <div key={lbl} className="fut-card-stat">
+                  <div className="fut-card-stat-num">{val}</div>
+                  <div className="fut-card-stat-label">{lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Goles badge sobre la carta */}
+        <div style={{
+          position: 'absolute', top: -10, right: -10,
+          background: '#f0c040', color: '#040d21',
+          borderRadius: '50%', width: 36, height: 36,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'Bebas Neue, sans-serif', fontSize: 18, fontWeight: 700,
+          boxShadow: '0 0 12px rgba(240,192,64,0.8)',
+        }}>
+          {goles}
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: 20, fontFamily: 'Rajdhani, sans-serif',
+        fontSize: 14, fontWeight: 700, letterSpacing: 0.5,
+        color: 'rgba(255,255,255,0.65)', textAlign: 'center',
+        animation: 'mvpSlideDown 0.45s ease 0.4s both',
+      }}>
+        Máximo anotador del partido
+      </div>
+
+      <button
+        className="btn btn-gold"
+        style={{ marginTop: 28, width: '100%', maxWidth: 240, animation: 'mvpSlideDown 0.45s ease 0.5s both' }}
+        onClick={onClose}
+      >
+        ¡A seguir anotando!
+      </button>
+    </div>
+  );
+}
+
+export function VotacionMvp({ partido, jugadores, miJugadorId, weekId, weeklyMvpId }) {
   const participantes = useMemo(() => {
-    const ids = [...(partido.equipoA ?? []), ...(partido.equipoB ?? [])];
+    const ids = partido.participantesIds
+      ?? [...(partido.equipoA ?? []), ...(partido.equipoB ?? [])];
     return ids.map(id => jugadores.find(j => j.id === id)).filter(Boolean);
   }, [partido, jugadores]);
 

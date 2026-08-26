@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { POSICION_GRUPOS, POSICION_DETALLADA, getInitials } from '../utils';
+import { PlayerSilhouette } from './PlayerSilhouette';
 
 /* ── FUT stats por posición — PAC SHO PAS DRI DEF PHY ── */
 const STICKER_STATS = {
@@ -118,13 +119,14 @@ export function StickerCard({ nombre, posicion, isComplete, isFlipping, isLaunch
         <div className="sticker-pos-code">{posicion}</div>
       </div>
 
-      {/* ── AVATAR ── */}
+      {/* ── AVATAR — full-bleed when name typed, placeholder circle otherwise ── */}
+      {initials ? (
+        <div className="sticker-avatar-fullbleed">
+          <PlayerSilhouette posicion={posicion} />
+        </div>
+      ) : null}
       <div className="sticker-avatar-zone">
-        {initials ? (
-          <div className="sticker-avatar sticker-avatar-filled">
-            <span className="sticker-avatar-initials">{initials}</span>
-          </div>
-        ) : (
+        {!initials && (
           <div className="sticker-avatar sticker-avatar-empty">
             <SilhouetteSVG />
           </div>
@@ -147,11 +149,11 @@ export function StickerCard({ nombre, posicion, isComplete, isFlipping, isLaunch
       <div className="sticker-stats">
         {[
           ['PAC', stats.PAC],
-          ['SHO', stats.SHO],
+          ['TIR', stats.SHO],
           ['PAS', stats.PAS],
-          ['DRI', stats.DRI],
+          ['REG', stats.DRI],
           ['DEF', stats.DEF],
-          ['PHY', stats.PHY],
+          ['FIS', stats.PHY],
         ].map(([label, val]) => (
           <div key={label} className="sticker-stat">
             <span className="sticker-stat-val">{val}</span>
@@ -170,7 +172,7 @@ export function StickerCard({ nombre, posicion, isComplete, isFlipping, isLaunch
 export default function Onboarding({ onComplete }) {
   const [fase, setFase] = useState('intro');   // intro | elegir | form | buscar | confirming | enter
   const [nombre, setNombre] = useState('');
-  const [posicion, setPosicion] = useState('DC');
+  const [posiciones, setPosiciones] = useState(['DC']);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -224,18 +226,28 @@ export default function Onboarding({ onComplete }) {
     entrar(j.id, j.nombre);
   }
 
-  // Flip animation when posicion changes — skip the initial mount
+  function togglePosicion(p) {
+    setPosiciones(prev => {
+      if (prev.includes(p)) {
+        if (prev.length === 1) return prev;
+        return prev.filter(pos => pos !== p);
+      }
+      if (prev.length >= 3) return prev;
+      return [...prev, p];
+    });
+  }
+
+  // Flip animation when primary posicion changes — skip the initial mount
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    // Clear any pending flip
     if (flipTimeout.current) clearTimeout(flipTimeout.current);
     setIsFlipping(true);
     flipTimeout.current = setTimeout(() => setIsFlipping(false), 350);
     return () => { if (flipTimeout.current) clearTimeout(flipTimeout.current); };
-  }, [posicion]);
+  }, [posiciones[0]]);
 
   const isComplete = nombre.trim().length > 0;
 
@@ -247,8 +259,16 @@ export default function Onboarding({ onComplete }) {
     setTimeout(async () => {
       setSaving(true);
       try {
+        const sPos = posiciones[0];
+        const s = STICKER_STATS[sPos] ?? STICKER_STATS['DC'];
         const ref = await addDoc(collection(db, 'jugadores'), {
-          nombre: n, posicion, activo: true, createdAt: serverTimestamp(),
+          nombre: n,
+          posicion: sPos,
+          posicionesAlt: posiciones.slice(1),
+          activo: true,
+          createdAt: serverTimestamp(),
+          pac: s.PAC, tir: s.SHO, pas: s.PAS, reg: s.DRI, def: s.DEF, fis: s.PHY,
+          overall: STICKER_OVERALL[sPos] ?? 75,
         });
         setSaving(false);
         setIsLaunching(false);
@@ -305,7 +325,7 @@ export default function Onboarding({ onComplete }) {
 
       {/* ── ELEGIR SCREEN ── */}
       {fase === 'elegir' && (
-        <div className="onb-form-wrap onb-form-enter" style={{ justifyContent: 'center', gap: 24 }}>
+        <div className="onb-form-wrap onb-form-enter" style={{ justifyContent: 'center', gap: 24, padding: '0 32px', paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <div className="onb-logo-title" style={{ fontSize: 36 }}>RDM</div>
             <div className="onb-logo-subtitle" style={{ fontSize: 18 }}>Fútbol</div>
@@ -372,25 +392,25 @@ export default function Onboarding({ onComplete }) {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12,
                         padding: '12px 14px',
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(255,255,255,0.07)',
+                        border: '1px solid rgba(240,192,64,0.2)',
                         borderRadius: 12, cursor: 'pointer',
                         transition: 'all 0.15s', textAlign: 'left',
                       }}
                     >
                       <div style={{
                         width: 36, height: 36, borderRadius: '50%',
-                        background: 'rgba(240,192,64,0.12)',
-                        border: '1.5px solid rgba(240,192,64,0.4)',
+                        background: 'rgba(240,192,64,0.15)',
+                        border: '1.5px solid rgba(240,192,64,0.5)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 700, color: 'var(--gold)',
+                        fontSize: 12, fontWeight: 700, color: '#f0c040',
                         fontFamily: 'Rajdhani, sans-serif', flexShrink: 0,
                       }}>
                         {j.nombre.trim().split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text1)' }}>{j.nombre}</div>
-                        <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 0.5 }}>{j.posicion}</div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#ffffff' }}>{j.nombre}</div>
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 0.5 }}>{j.posicion}</div>
                       </div>
                     </button>
                   ))}
@@ -416,7 +436,7 @@ export default function Onboarding({ onComplete }) {
           <div className="onb-sticker-zone">
             <StickerCard
               nombre={nombre}
-              posicion={posicion}
+              posicion={posiciones[0]}
               isComplete={isComplete}
               isFlipping={isFlipping}
               isLaunching={isLaunching}
@@ -436,6 +456,8 @@ export default function Onboarding({ onComplete }) {
                     onChange={e => { setNombre(e.target.value); setError(''); }}
                     placeholder="Ej: Carlos Ramírez"
                     autoFocus
+                    autoComplete="new-password"
+                    data-form-type="other"
                     maxLength={40}
                     onKeyDown={e => e.key === 'Enter' && confirmar()}
                     disabled={saving}
@@ -443,28 +465,38 @@ export default function Onboarding({ onComplete }) {
                   {error && <div className="onb-error">{error}</div>}
                 </div>
 
-                {/* Position picker — compact horizontal scroll */}
+                {/* Position picker — multi-select, up to 3 */}
                 <div className="onb-field-group">
                   <label className="onb-field-label">Tu posición</label>
+                  <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'Rajdhani', letterSpacing: 0.5, marginBottom: 6 }}>
+                    Toca para seleccionar — primera = principal, hasta 3 posiciones
+                  </div>
                   <div className="onb-pos-scroll">
-                    {POSICION_GRUPOS.map(({ grupo, posiciones }) => (
+                    {POSICION_GRUPOS.map(({ grupo, posiciones: posPorGrupo }) => (
                       <div key={grupo} className="onb-pos-group">
                         <div className="onb-pos-group-label">{grupo}</div>
                         <div className="onb-pos-row">
-                          {posiciones.map(p => {
+                          {posPorGrupo.map(p => {
                             const cfg = POSICION_DETALLADA[p];
-                            const selected = posicion === p;
+                            const selIdx = posiciones.indexOf(p);
+                            const isPrimary = selIdx === 0;
+                            const isAlt = selIdx > 0;
                             return (
                               <button
                                 key={p}
-                                className={`onb-pos-btn ${selected ? 'onb-pos-selected' : ''}`}
-                                style={selected ? {
+                                className={`onb-pos-btn ${selIdx !== -1 ? 'onb-pos-selected' : ''}`}
+                                style={isPrimary ? {
                                   borderColor: cfg.color,
                                   color: cfg.color,
                                   background: cfg.bg,
                                   boxShadow: `0 0 10px ${cfg.color}44`,
+                                } : isAlt ? {
+                                  borderColor: `${cfg.color}66`,
+                                  color: `${cfg.color}99`,
+                                  background: cfg.bg,
+                                  opacity: 0.75,
                                 } : {}}
-                                onClick={() => setPosicion(p)}
+                                onClick={() => togglePosicion(p)}
                                 disabled={saving}
                                 title={cfg.nombre}
                               >
@@ -476,6 +508,25 @@ export default function Onboarding({ onComplete }) {
                       </div>
                     ))}
                   </div>
+                  {posiciones.length > 1 && (
+                    <div style={{
+                      marginTop: 6, fontFamily: 'Rajdhani', fontWeight: 700,
+                      letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center',
+                      gap: 8, flexWrap: 'wrap',
+                    }}>
+                      {posiciones.map((p, i) => (
+                        <span key={p} style={{
+                          fontSize: 10, lineHeight: 1,
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                          color: i === 0 ? POSICION_DETALLADA[p]?.color : 'var(--text3)',
+                        }}>
+                          <span style={{ fontSize: i === 0 ? 9 : 11, lineHeight: 1 }}>{i === 0 ? '★' : '·'}</span>
+                          {POSICION_DETALLADA[p]?.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* CTA Button */}

@@ -18,7 +18,7 @@ const RADAR_ANGLES = { pac: -90, tir: -30, pas: 30, reg: 90, def: 150, fis: 210 
 const RADAR_CX = 90, RADAR_CY = 90, RADAR_MAX_R = 58, RADAR_VB = 180;
 const RAD = Math.PI / 180;
 
-function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
+export function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
   const [dragging, setDragging] = useState(null);
   const svgRef = useRef(null);
 
@@ -147,7 +147,7 @@ function RadarStatEditor({ stats, onSetStat, budget, min, max }) {
   );
 }
 
-export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMvpId = null }) {
+export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMvpId = null, jugadorActual = null, onEditarPerfil = null }) {
   const [showForm, setShowForm]       = useState(false);
   const [editId, setEditId]           = useState(null);
   const [nombre, setNombre]           = useState('');
@@ -240,8 +240,10 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
     setConfirmarEliminar(null);
   }
 
-  const activos   = jugadores.filter(j => j.activo !== false);
-  const inactivos = jugadores.filter(j => j.activo === false);
+  const miJugador    = jugadorActual ? jugadores.find(j => j.id === jugadorActual.id) ?? null : null;
+  const activos      = jugadores.filter(j => j.activo !== false);
+  const otrosActivos = activos.filter(j => j.id !== miJugador?.id);
+  const inactivos    = jugadores.filter(j => j.activo === false);
 
   return (
     <div className="page">
@@ -256,8 +258,53 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
           <span style={{ color: 'var(--gold)', fontWeight: 700, fontFamily: 'Rajdhani', fontSize: 18 }}>{activos.length}</span>
           <span style={{ fontSize: 11, marginLeft: 4, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text3)' }}>jugadores activos</span>
         </div>
-        <button className="btn btn-gold btn-sm" onClick={openNew}>+ Agregar</button>
+        {isAdmin && <button className="btn btn-gold btn-sm" onClick={openNew}>+ Agregar</button>}
       </div>
+
+      {/* ── TU TARJETA ── */}
+      {miJugador && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: 3,
+            color: 'var(--text3)', textTransform: 'uppercase',
+            fontFamily: 'Rajdhani, sans-serif', marginBottom: 10, textAlign: 'center',
+          }}>
+            Tu tarjeta
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ width: 160 }}>
+            <FutCard
+              j={miJugador}
+              racha={rachasMap[miJugador.id] ?? 0}
+              isMvp={weeklyMvpId === miJugador.id}
+              onEdit={isAdmin ? openEdit : null}
+              onToggle={isAdmin ? toggleActivo : null}
+              onEliminar={null}
+              revealed={revealId === miJugador.id}
+              onReveal={() => setRevealId(revealId === miJugador.id ? null : miJugador.id)}
+              animDelay={0}
+            />
+            </div>
+          </div>
+          {onEditarPerfil && (
+            <div style={{ textAlign: 'center', marginTop: 10 }}>
+              <button
+                onClick={onEditarPerfil}
+                style={{
+                  background: 'rgba(240,192,64,0.08)',
+                  border: '1.5px solid rgba(240,192,64,0.45)',
+                  borderRadius: 20, padding: '6px 20px',
+                  fontSize: 11, fontWeight: 700, letterSpacing: 1.5,
+                  color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif',
+                  textTransform: 'uppercase', cursor: 'pointer',
+                }}
+              >
+                ✎ Editar perfil
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {activos.length === 0 && (
         <div className="empty-state">
@@ -266,18 +313,18 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
         </div>
       )}
 
-      {activos.length > 0 && (
+      {otrosActivos.length > 0 && (
         <>
-          <div className="section-label">Activos</div>
+          <div className="section-label">El equipo</div>
           <div className="fut-card-grid">
-            {activos.map((j, idx) => (
+            {otrosActivos.map((j, idx) => (
               <FutCard
                 key={j.id}
                 j={j}
                 racha={rachasMap[j.id] ?? 0}
                 isMvp={weeklyMvpId === j.id}
-                onEdit={openEdit}
-                onToggle={toggleActivo}
+                onEdit={isAdmin ? openEdit : null}
+                onToggle={isAdmin ? toggleActivo : null}
                 onEliminar={isAdmin ? eliminarJugador : null}
                 revealed={revealId === j.id}
                 onReveal={() => setRevealId(revealId === j.id ? null : j.id)}
@@ -298,8 +345,8 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
                 j={j}
                 racha={rachasMap[j.id] ?? 0}
                 isMvp={weeklyMvpId === j.id}
-                onEdit={openEdit}
-                onToggle={toggleActivo}
+                onEdit={isAdmin ? openEdit : null}
+                onToggle={isAdmin ? toggleActivo : null}
                 onEliminar={isAdmin ? eliminarJugador : null}
                 revealed={revealId === j.id}
                 onReveal={() => setRevealId(revealId === j.id ? null : j.id)}
@@ -406,14 +453,17 @@ export default function Jugadores({ jugadores, isAdmin, rachasMap = {}, weeklyMv
                 <div style={{
                   marginTop: 8, fontFamily: 'Rajdhani', fontWeight: 700,
                   letterSpacing: 1, textAlign: 'center', textTransform: 'uppercase',
-                  display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center',
+                  gap: 8, flexWrap: 'wrap',
                 }}>
                   {posiciones.map((p, i) => (
                     <span key={p} style={{
-                      fontSize: 11,
+                      fontSize: 11, lineHeight: 1,
+                      display: 'inline-flex', alignItems: 'center', gap: 3,
                       color: i === 0 ? POSICION_DETALLADA[p]?.color : 'var(--text3)',
                     }}>
-                      {i === 0 ? '★ ' : '· '}{POSICION_DETALLADA[p]?.nombre}
+                      <span style={{ fontSize: i === 0 ? 9 : 11, lineHeight: 1 }}>{i === 0 ? '★' : '·'}</span>
+                      {POSICION_DETALLADA[p]?.nombre}
                     </span>
                   ))}
                 </div>
@@ -524,17 +574,6 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
         e.currentTarget.style.transform = '';
       }}
     >
-      {racha >= 2 && (
-        <div style={{
-          position: 'absolute', top: 5, right: 5, zIndex: 3,
-          display: 'flex', alignItems: 'center', gap: 1,
-          fontSize: 8, fontWeight: 800, fontFamily: 'Rajdhani',
-          color: '#f97316', lineHeight: 1,
-          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.7))',
-        }}>
-          🔥{racha}
-        </div>
-      )}
       <div className="fut-card-inner">
         {/* Top row: overall + pos + flag */}
         <div className="fut-card-top">
@@ -582,22 +621,41 @@ function FutCard({ j, racha, isMvp, onEdit, onToggle, onEliminar, revealed, onRe
         </div>
       )}
     </div>
+    {racha >= 2 && (
+      <div style={{
+        marginTop: 5, alignSelf: 'center',
+        background: 'linear-gradient(90deg, #c2410c, #f97316)',
+        borderRadius: 20, padding: '3px 10px',
+        fontSize: 9, fontWeight: 800, fontFamily: 'Rajdhani',
+        color: '#fff', letterSpacing: 1, textTransform: 'uppercase',
+        boxShadow: '0 2px 8px rgba(249,115,22,0.45)',
+        whiteSpace: 'nowrap',
+      }}>
+        🔥 {racha} semanas
+      </div>
+    )}
+    {(onEdit || onToggle || onEliminar) && (
     <div className="fut-card-actions">
-      <button className="fca-btn" onClick={e => { e.stopPropagation(); onEdit(j); }}>
-        ✎ Editar
-      </button>
-      <button
-        className={`fca-btn fca-status ${j.activo !== false ? 'fca-on' : 'fca-off'}`}
-        onClick={e => { e.stopPropagation(); onToggle(j); }}
-      >
-        {j.activo !== false ? '● Activo' : '○ Baja'}
-      </button>
+      {onEdit && (
+        <button className="fca-btn" onClick={e => { e.stopPropagation(); onEdit(j); }}>
+          ✎ Editar
+        </button>
+      )}
+      {onToggle && (
+        <button
+          className={`fca-btn fca-status ${j.activo !== false ? 'fca-on' : 'fca-off'}`}
+          onClick={e => { e.stopPropagation(); onToggle(j); }}
+        >
+          {j.activo !== false ? '● Activo' : '○ Baja'}
+        </button>
+      )}
       {onEliminar && (
         <button className="fca-btn fca-del" onClick={e => { e.stopPropagation(); onEliminar(j); }}>
           ✕
         </button>
       )}
     </div>
+    )}
     </div>
   );
 }

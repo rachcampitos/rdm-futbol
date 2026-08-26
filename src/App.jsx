@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, doc, onSnapshot, query, orderBy, updateDoc, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, orderBy, updateDoc, limit, getDoc, where } from 'firebase/firestore';
 import { db } from './firebase';
-import { getWeekId, POSICION_GRUPOS, POSICION_DETALLADA, calcStats } from './utils';
-import EstasSemana from './pages/EstasSemana';
-import Jugadores from './pages/Jugadores';
+import { getWeekId, getPrevWeekId, POSICION_GRUPOS, POSICION_DETALLADA, calcStats } from './utils';
+import EstasSemana, { MvpRevealOverlay, GoleadorRevealOverlay } from './pages/EstasSemana';
+import Jugadores, { RadarStatEditor } from './pages/Jugadores';
 import Sorteo from './pages/Sorteo';
 import Penaltis from './pages/Penaltis';
 import Historial from './pages/Historial';
@@ -269,12 +269,10 @@ function MusicStrip({ playing, started, songName, onToggle, onNext }) {
 }
 
 /* ── Editar Perfil Modal ── */
-const STAT_KEYS    = ['pac', 'tir', 'pas', 'reg', 'def', 'fis'];
-const STAT_LABELS  = { pac: 'PAC', tir: 'TIR', pas: 'PAS', reg: 'REG', def: 'DEF', fis: 'FIS' };
-const STAT_NAMES   = { pac: 'Velocidad', tir: 'Tiro', pas: 'Pase', reg: 'Regate', def: 'Defensa', fis: 'Físico' };
-const STAT_BUDGET  = 450;
-const STAT_MIN     = 40;
-const STAT_MAX     = 99;
+const STAT_KEYS   = ['pac', 'tir', 'pas', 'reg', 'def', 'fis'];
+const STAT_BUDGET = 450;
+const STAT_MIN    = 40;
+const STAT_MAX    = 99;
 
 function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
   const [nombre,    setNombre]    = useState(jugadorActual?.nombre ?? '');
@@ -290,28 +288,6 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
     const computed = calcStats(jugadorActual);
     return Object.fromEntries(STAT_KEYS.map(k => [k, computed[k]]));
   });
-
-  const totalUsado  = STAT_KEYS.reduce((sum, k) => sum + stats[k], 0);
-  const ptsLibres   = STAT_BUDGET - totalUsado;
-  const budgetPct   = (totalUsado / STAT_BUDGET) * 100;
-  const budgetColor = ptsLibres === 0 ? '#ef4444' : ptsLibres <= 10 ? '#f59e0b' : '#10b981';
-
-  function setStat(key, delta) {
-    setStats(prev => {
-      const cur    = prev[key];
-      const newVal = Math.max(STAT_MIN, Math.min(STAT_MAX, cur + delta));
-      const diff   = newVal - cur;
-      if (diff > 0 && ptsLibres < diff) return prev;
-      return { ...prev, [key]: newVal };
-    });
-  }
-
-  function setStatSlider(key, val) {
-    const newVal = Number(val);
-    const diff   = newVal - stats[key];
-    if (diff > 0 && ptsLibres < diff) return;
-    setStats(prev => ({ ...prev, [key]: newVal }));
-  }
 
   // Flip card when position changes
   useEffect(() => {
@@ -407,109 +383,13 @@ function EditarPerfilModal({ jugadorActual, onClose, onSave }) {
         </div>
 
         {/* Stats editor */}
-        <div className="form-group">
-          <label className="form-label">Mis stats</label>
-
-          {/* How it works info */}
-          <div style={{
-            background: 'rgba(240,192,64,0.07)',
-            border: '1px solid rgba(240,192,64,0.25)',
-            borderRadius: 10,
-            padding: '10px 12px',
-            marginBottom: 12,
-            fontSize: 11,
-            color: 'var(--text2)',
-            lineHeight: 1.55,
-            fontFamily: 'Rajdhani, sans-serif',
-          }}>
-            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>¿Cómo funciona?</span>
-            {' '}Tienes <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{STAT_BUDGET} puntos</span> para repartir entre tus 6 atributos.
-            Si subes uno, tienes que bajar otro — igual que en FIFA.
-            Así cada jugador tiene sus propias fortalezas.
-          </div>
-
-          {/* Budget bar */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--text3)', fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase' }}>
-                Puntos usados
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: budgetColor, fontFamily: 'Rajdhani, sans-serif' }}>
-                {totalUsado} / {STAT_BUDGET}
-                {ptsLibres > 0 && <span style={{ color: 'var(--text3)', fontWeight: 400 }}> · {ptsLibres} libres</span>}
-                {ptsLibres === 0 && <span style={{ color: '#ef4444' }}> · ¡Lleno!</span>}
-              </span>
-            </div>
-            <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: 3,
-                width: `${budgetPct}%`,
-                background: budgetColor,
-                transition: 'width 0.15s, background 0.2s',
-              }} />
-            </div>
-          </div>
-
-          {/* Stat rows */}
-          {STAT_KEYS.map(key => (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              {/* Label */}
-              <div style={{ width: 36, flexShrink: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1 }}>
-                  {STAT_LABELS[key]}
-                </div>
-                <div style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 0.5, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {STAT_NAMES[key]}
-                </div>
-              </div>
-              {/* Minus */}
-              <button
-                onClick={() => setStat(key, -1)}
-                disabled={saving || stats[key] <= STAT_MIN}
-                style={{
-                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: stats[key] <= STAT_MIN ? 0.3 : 1,
-                }}
-              >−</button>
-              {/* Slider */}
-              <input
-                type="range"
-                min={STAT_MIN}
-                max={STAT_MAX}
-                value={stats[key]}
-                onChange={e => setStatSlider(key, e.target.value)}
-                disabled={saving}
-                style={{ flex: 1, accentColor: 'var(--gold)', height: 4 }}
-              />
-              {/* Plus */}
-              <button
-                onClick={() => setStat(key, 1)}
-                disabled={saving || ptsLibres === 0 || stats[key] >= STAT_MAX}
-                style={{
-                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.05)',
-                  color: 'var(--text2)', fontSize: 16, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: (ptsLibres === 0 || stats[key] >= STAT_MAX) ? 0.3 : 1,
-                }}
-              >+</button>
-              {/* Value */}
-              <div style={{
-                width: 32, textAlign: 'right', flexShrink: 0,
-                fontSize: 18, fontWeight: 700,
-                color: stats[key] >= 85 ? '#f0c040' : stats[key] >= 70 ? 'var(--text)' : 'var(--text3)',
-                fontFamily: 'Rajdhani, sans-serif',
-              }}>
-                {stats[key]}
-              </div>
-            </div>
-          ))}
-        </div>
+        <RadarStatEditor
+          stats={stats}
+          onSetStat={(key, val) => setStats(prev => ({ ...prev, [key]: val }))}
+          budget={STAT_BUDGET}
+          min={STAT_MIN}
+          max={STAT_MAX}
+        />
 
         {/* Captain toggle */}
         <div className="form-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -725,6 +605,8 @@ export default function App() {
   const [historialPartidos, setHistorialPartidos] = useState([]);
   const [appVisible, setAppVisible]         = useState(false);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [activeWeekId, setActiveWeekId]     = useState(getWeekId());
+  const [partidoExtra,  setPartidoExtra]    = useState(null);
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -734,10 +616,34 @@ export default function App() {
     return unsub;
   }, []);
 
+  // Determinar el partido activo: si la semana actual está vacía y la semana anterior
+  // no fue cerrada, continuar usando la semana anterior (evita que el lunes borre confirmados).
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'partidos', getWeekId()), snap => {
+    const currentId = getWeekId();
+    const prevId = getPrevWeekId();
+    Promise.all([
+      getDoc(doc(db, 'partidos', currentId)),
+      getDoc(doc(db, 'partidos', prevId)),
+    ]).then(([currentSnap, prevSnap]) => {
+      const currentVacio  = !currentSnap.exists() || !currentSnap.data()?.convocados?.length;
+      const prevTieneData = prevSnap.exists() && (prevSnap.data()?.convocados?.length ?? 0) > 0;
+      if (currentVacio && prevTieneData) setActiveWeekId(prevId);
+      else setActiveWeekId(currentId);
+    });
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'partidos', activeWeekId), snap => {
       setPartido(snap.exists() ? { id: snap.id, ...snap.data() } : null);
     });
+    return unsub;
+  }, [activeWeekId]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'partidos-extra'), where('activo', '==', true), limit(1)),
+      snap => setPartidoExtra(snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() })
+    );
     return unsub;
   }, []);
 
@@ -751,8 +657,8 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onSnapshot(
-      query(collection(db, 'partidos'), orderBy('__name__', 'desc'), limit(40)),
-      snap => setHistorialPartidos(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      query(collection(db, 'partidos'), orderBy('__name__', 'asc'), limit(40)),
+      snap => setHistorialPartidos(snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse())
     );
     return unsub;
   }, []);
@@ -798,6 +704,25 @@ export default function App() {
     return entries.sort((a, b) => b[1] - a[1])[0][0];
   }, [partido]);
 
+  const topGoleadorId = useMemo(() => {
+    if (!partido?.cerrado || !partido?.goleadores?.length) return null;
+    return [...partido.goleadores].sort((a, b) => b.goles - a.goles)[0]?.jugadorId ?? null;
+  }, [partido]);
+
+  const [showMvpReveal,      setShowMvpReveal]      = useState(false);
+  const [showGoleadorReveal, setShowGoleadorReveal] = useState(false);
+
+  useEffect(() => {
+    if (!partido?.cerrado || !jugadorActual?.id) return;
+    if (weeklyMvpId && jugadorActual.id === weeklyMvpId && !localStorage.getItem(`mvp-reveal-seen-${activeWeekId}`)) {
+      setShowMvpReveal(true);
+      return;
+    }
+    if (topGoleadorId && jugadorActual.id === topGoleadorId && !localStorage.getItem(`goleador-reveal-seen-${activeWeekId}`)) {
+      setShowGoleadorReveal(true);
+    }
+  }, [weeklyMvpId, topGoleadorId, jugadorActual?.id, partido?.cerrado, activeWeekId]);
+
   // Compute consecutive-week attendance streak per player from closed partidos
   const rachasMap = useMemo(() => {
     const cerrados = historialPartidos
@@ -818,6 +743,16 @@ export default function App() {
     return map;
   }, [historialPartidos, jugadores]);
 
+  const mvpVotosCounts = useMemo(() => {
+    const c = {};
+    Object.values(partido?.mvpVotos ?? {}).forEach(id => { c[id] = (c[id] ?? 0) + 1; });
+    return c;
+  }, [partido?.mvpVotos]);
+  const misGoles = useMemo(() => {
+    if (!jugadorActual?.id || !partido?.goleadores) return 0;
+    return partido.goleadores.find(g => g.jugadorId === jugadorActual.id)?.goles ?? 0;
+  }, [jugadorActual?.id, partido?.goleadores]);
+
   const { playing, started, toggle, prevSong, nextSong, songName } = useAudioPlayer();
 
   // Show onboarding if no jugador registered (admin bypasses this)
@@ -826,6 +761,31 @@ export default function App() {
   }
 
   return (
+    <>
+    {showMvpReveal && jugadorActual && createPortal(
+      <MvpRevealOverlay
+        jugador={jugadores.find(j => j.id === jugadorActual.id) ?? jugadorActual}
+        votos={mvpVotosCounts[jugadorActual.id] ?? 0}
+        totalVotantes={Object.keys(partido?.mvpVotos ?? {}).length}
+        onClose={() => {
+          localStorage.setItem(`mvp-reveal-seen-${activeWeekId}`, '1');
+          setShowMvpReveal(false);
+          if (topGoleadorId && jugadorActual.id === topGoleadorId && !localStorage.getItem(`goleador-reveal-seen-${activeWeekId}`)) {
+            setShowGoleadorReveal(true);
+          }
+        }}
+      />, document.body
+    )}
+    {showGoleadorReveal && jugadorActual && createPortal(
+      <GoleadorRevealOverlay
+        jugador={jugadores.find(j => j.id === jugadorActual.id) ?? jugadorActual}
+        goles={misGoles}
+        onClose={() => {
+          localStorage.setItem(`goleador-reveal-seen-${activeWeekId}`, '1');
+          setShowGoleadorReveal(false);
+        }}
+      />, document.body
+    )}
     <div className={`app ${appVisible ? 'app-visible' : 'app-hidden'}`}>
       <WebViewBanner />
       <header className="header">
@@ -835,7 +795,7 @@ export default function App() {
         </div>
         <div className="header-title">RDM Fútbol</div>
         <div className="header-subtitle">Liga de Papás</div>
-        {partido?.fechaTexto && (
+        {partido?.fechaTexto && !partido?.cerrado && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 6, marginTop: 6,
@@ -907,11 +867,12 @@ export default function App() {
         ))}
       </nav>
 
-      {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} onEditarPerfil={() => setEditandoPerfil(true)} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
-      {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} />}
-      {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} isAdmin={isAdmin} />}
-      {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} isAdmin={isAdmin} />}
-      {tab === 'stats'    && <Historial partidos={historialPartidos} jugadores={jugadores} />}
+      {tab === 'semana'   && <EstasSemana jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} penaltis={penaltis} onEditarPerfil={() => setEditandoPerfil(true)} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} weekId={activeWeekId} partidoExtra={partidoExtra} />}
+      {tab === 'roster'   && <Jugadores jugadores={jugadores} isAdmin={isAdmin} rachasMap={rachasMap} weeklyMvpId={weeklyMvpId} jugadorActual={jugadorActual} onEditarPerfil={() => setEditandoPerfil(true)} />}
+      {tab === 'sorteo'   && <Sorteo jugadores={jugadores} partido={partido} jugadorActual={jugadorActual} isAdmin={isAdmin} weekId={activeWeekId} />}
+      {tab === 'penaltis' && <Penaltis jugadores={jugadores} penaltis={penaltis} isAdmin={isAdmin} jugadorActual={jugadorActual} partido={partido} weekId={activeWeekId} />}
+      {tab === 'stats'    && <Historial partidos={historialPartidos} jugadores={jugadores} miJugadorId={jugadorActual?.id} />}
     </div>
+    </>
   );
 }

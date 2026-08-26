@@ -13,42 +13,40 @@ export const POSE_MAP = {
   MOC:  [1, 3, 2], // volley
   EXI:  [0, 0, 1], // shoot / sprint
   EXD:  [1, 2, 2], // dribbling forward
-  SD:   [0, 3, 2], // standing with ball (upright)
-  DC:   [0, 1, 3], // kicking — sheet 3
+  SD:   [1, 3, 2], // volley / segundo delantero
+  DC:   [0, 0, 1], // sprint hacia arco — mismo frame que EXI
 };
 
 export const POSE_Y_ADJUST = { LTD: -8 };
 
-// scale < 1 → zoom out para eliminar sangrado JPEG en bordes de celda
-export const POSE_SCALE = { DC: 0.88 };
-
-// Máscara para recortar bordes específicos donde sangra una celda vecina
-export const POSE_MASK = {
-  DC: 'linear-gradient(to right, black 80%, transparent 90%)',
-};
+// scale != 1 → zoom in/out; sin entrada = scale 1.0 (celda llena exacta, sin ghosts)
+export const POSE_SCALE = {};
 
 export const SPRITE = { 1: '/silhouettes.jpg', 2: '/silhouettes2.jpg', 3: '/silhouettes3.jpg' };
 
+// SVG filter #sil (definido en index.html) convierte el JPEG a silueta blanca con alpha:
+// feColorMatrix(luminanceToAlpha) → oscuro=alpha alto, claro=alpha bajo
+// feComponentTransfer(invert alpha) → oscuro=visible, claro=transparente
+// feFlood(blanco) + feComposite(in) → figura blanca sobre fondo transparente
+// Funciona en iOS Safari, Chrome, Firefox — sin mix-blend-mode ni mask-composite.
 export function PlayerSilhouette({ posicion }) {
   const [row, col, sheet = 1] = POSE_MAP[posicion] ?? [0, 1, 1];
   const scale = POSE_SCALE[posicion] ?? 1;
   const bsW = (400 * scale).toFixed(2);
   const bsH = (200 * scale).toFixed(2);
-  // Centra la celda en el contenedor para cualquier escala.
   const xPct = ((0.5 - (col + 0.5) * scale) / (1 - 4 * scale) * 100).toFixed(3);
   const yAdjust = POSE_Y_ADJUST[posicion] ?? 0;
   const yPct = ((0.5 - (row + 0.5) * scale) / (1 - 2 * scale) * 100 + yAdjust).toFixed(3);
-  const mask = POSE_MASK[posicion] ?? null;
+  const url = SPRITE[sheet];
   return (
     <div style={{
-      width: '100%', height: '100%',
-      backgroundImage: `url(${SPRITE[sheet]})`,
+      width: '100%',
+      height: '100%',
+      backgroundImage: `url(${url})`,
       backgroundSize: `${bsW}% ${bsH}%`,
       backgroundPosition: `${xPct}% ${yPct}%`,
       backgroundRepeat: 'no-repeat',
-      filter: 'invert(1) brightness(3) contrast(15)',
-      opacity: 0.82,
-      ...(mask ? { WebkitMaskImage: mask, maskImage: mask } : {}),
+      filter: 'url(#sil)',
     }} />
   );
 }

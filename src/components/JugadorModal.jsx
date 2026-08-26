@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { getInitials, getPosicionConfig, getPosicionLabel } from '../utils';
+import { getInitials, getPosicionConfig, getPosicionLabel, calcStats, getRating, getCardTier } from '../utils';
+import { PlayerSilhouette } from './PlayerSilhouette';
 
 const TIPOS = [
   { value: 'falta_injustificada', label: 'Falta injustificada', emoji: '🍺', esDoce: true },
@@ -9,62 +10,9 @@ const TIPOS = [
   { value: 'otro',                label: 'Otro',                emoji: '📋' },
 ];
 
-function hashInt(str) {
-  let h = 5381;
-  for (let i = 0; i < str.length; i++) h = (Math.imul(33, h) ^ str.charCodeAt(i)) >>> 0;
-  return h;
-}
 
-function getRating(jugador) {
-  if (jugador.overall) return jugador.overall;
-  const base = { portero: 72, defensa: 68, mediocampo: 70, delantero: 74 };
-  const cat = jugador.categoria ?? jugador.posicion ?? 'mediocampo';
-  return base[cat] ?? 70;
-}
 
-function calcStats(jugador) {
-  const overall = getRating(jugador);
-  const seed = hashInt(jugador.id ?? jugador.nombre ?? '?');
-  const W = {
-    POR:  [0.74, 0.62, 0.78, 0.72, 0.93, 0.90],
-    LTI:  [0.90, 0.72, 0.85, 0.84, 0.90, 0.86],
-    DTI:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    DFC:  [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCi: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    DFCd: [0.76, 0.66, 0.77, 0.74, 0.97, 0.92],
-    LTD:  [0.90, 0.74, 0.85, 0.84, 0.90, 0.86],
-    DTD:  [0.83, 0.68, 0.80, 0.78, 0.94, 0.88],
-    MC:   [0.84, 0.82, 0.93, 0.88, 0.80, 0.84],
-    MCD:  [0.80, 0.74, 0.88, 0.82, 0.91, 0.88],
-    MCO:  [0.86, 0.90, 0.95, 0.93, 0.62, 0.80],
-    EXI:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    EXD:  [0.96, 0.84, 0.86, 0.93, 0.58, 0.82],
-    SD:   [0.88, 0.95, 0.80, 0.88, 0.50, 0.84],
-    DC:   [0.85, 0.97, 0.77, 0.86, 0.46, 0.87],
-  };
-  const w = W[jugador.posicion] ?? [0.88, 0.88, 0.88, 0.88, 0.75, 0.85];
-  function stat(wi, offset) {
-    const r = ((seed * (offset * 2654435761)) >>> 0) % 8;
-    return Math.min(99, Math.round(overall * wi + r));
-  }
-  return {
-    pac: jugador.pac ?? stat(w[0], 1),
-    tir: jugador.tir ?? stat(w[1], 2),
-    pas: jugador.pas ?? stat(w[2], 3),
-    reg: jugador.reg ?? stat(w[3], 4),
-    def: jugador.def ?? stat(w[4], 5),
-    fis: jugador.fis ?? stat(w[5], 6),
-  };
-}
-
-function getCardTier(overall) {
-  if (overall >= 85) return 'elite';
-  if (overall >= 75) return 'gold';
-  if (overall >= 65) return 'silver';
-  return 'bronze';
-}
-
-export default function JugadorModal({ jugador, convocado, penaltisJugador, onClose, onAddPenalti, onSubirComprobante, subiendoComprobante }) {
+export default function JugadorModal({ jugador, convocado, penaltisJugador, onClose, onAddPenalti, onSubirComprobante, subiendoComprobante, esMvp = false }) {
   const [tipoSel, setTipoSel]         = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando]     = useState(false);
@@ -79,7 +27,7 @@ export default function JugadorModal({ jugador, convocado, penaltisJugador, onCl
   }, []);
 
   const overall  = getRating(jugador);
-  const tier     = getCardTier(overall);
+  const tier     = esMvp ? 'inform' : (jugador.cardVariant ?? getCardTier(overall));
   const cfg      = getPosicionConfig(jugador.posicion);
   const posLabel = getPosicionLabel(jugador.posicion);
   const stats    = calcStats(jugador);
@@ -129,6 +77,17 @@ export default function JugadorModal({ jugador, convocado, penaltisJugador, onCl
             {jugador.capitan && (
               <span className="capitan-badge">C</span>
             )}
+            {esMvp && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: 1,
+                color: '#ef4444', background: 'rgba(239,68,68,0.12)',
+                border: '1px solid rgba(239,68,68,0.35)',
+                borderRadius: 20, padding: '3px 8px',
+                fontFamily: 'Rajdhani, sans-serif', textTransform: 'uppercase',
+              }}>
+                ⚡ Jugador de la semana
+              </span>
+            )}
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
@@ -144,13 +103,18 @@ export default function JugadorModal({ jugador, convocado, penaltisJugador, onCl
                 <div>
                   <div className="fut-card-overall">{overall}</div>
                   <div className="fut-card-pos">{posLabel}</div>
+                  {(jugador.posicionesAlt ?? []).length > 0 && (
+                    <div style={{ fontSize: 6, color: 'rgba(255,255,255,0.5)', fontFamily: 'Rajdhani', letterSpacing: 0.3, lineHeight: 1, marginTop: 1, textAlign: 'center' }}>
+                      {jugador.posicionesAlt.map(p => getPosicionLabel(p)).join('·')}
+                    </div>
+                  )}
                   {jugador.capitan && <div className="fut-card-capitan-c">C</div>}
                 </div>
                 <div className="fut-card-flag">🇵🇪</div>
               </div>
               <div className="fut-card-avatar-wrap">
-                <div className="fut-card-avatar" style={{ width: 68, height: 68, fontSize: 24 }}>
-                  {getInitials(jugador.nombre)}
+                <div className="fut-card-avatar">
+                  <PlayerSilhouette posicion={jugador.posicion} />
                 </div>
               </div>
               <div className="fut-card-name">{jugador.nombre.split(' ')[0]}</div>

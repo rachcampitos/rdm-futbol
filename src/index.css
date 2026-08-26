@@ -477,6 +477,34 @@ input[type="range"]:focus-visible {
     inset 0 0 60px rgba(0,0,0,.3);
 }
 
+/* EA FC My Team — perspectiva solo en fondo y líneas, cards quedan planas */
+.field-bg-perspective {
+  transform: perspective(700px) rotateX(28deg);
+  transform-origin: center 50%;
+  animation: pitch-tilt-in 0.55s cubic-bezier(0.34, 1.0, 0.64, 1.0) both;
+}
+
+.field-svg-perspective {
+  transform: perspective(700px) rotateX(28deg);
+  transform-origin: center 50%;
+  animation: pitch-tilt-in 0.55s cubic-bezier(0.34, 1.0, 0.64, 1.0) both;
+}
+
+@keyframes pitch-tilt-in {
+  from { transform: perspective(700px) rotateX(0deg); opacity: 0.6; }
+  to   { transform: perspective(700px) rotateX(28deg); opacity: 1; }
+}
+
+/* Entrada suave al volver a la vista Cancha desde Cards */
+.field-wrap-cancha {
+  animation: field-cancha-enter 0.4s ease both;
+}
+
+@keyframes field-cancha-enter {
+  from { transform: perspective(500px) rotateX(10deg); opacity: 0.4; }
+  to   { transform: none; opacity: 1; }
+}
+
 /* Grass gradient — realistic turf with mow stripes */
 .field-bg {
   position: absolute; inset: 0;
@@ -579,13 +607,11 @@ input[type="range"]:focus-visible {
 }
 
 .pitch-mini-inner {
-  width: 56px;
-  height: 92px;
-  border-radius: 6px;
+  width: 60px;
+  height: 91px;
+  border-radius: 7px;
   position: relative;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   will-change: transform;
 }
 
@@ -641,59 +667,62 @@ input[type="range"]:focus-visible {
   background: linear-gradient(135deg, rgba(255,255,255,0.13) 0%, transparent 55%, rgba(255,255,255,0.04) 100%);
 }
 
-/* Header: overall + position */
+/* Header: overall + position — absolute sobre la silueta (como tarjetas FIFA reales) */
 .pitch-mini-header {
-  padding: 3px 4px 0;
+  position: absolute;
+  top: 3px; left: 4px;
+  z-index: 5;
   line-height: 1;
-  z-index: 3;
-  flex-shrink: 0;
+  pointer-events: none;
 }
 .pitch-mini-overall {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
-  font-size: 15px; font-weight: 400; line-height: 1;
+  font-size: 16px; font-weight: 400; line-height: 1;
   color: rgba(255,255,255,0.95);
   text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 .pitch-mini-pos {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 7px; font-weight: 700;
+  font-size: 8px; font-weight: 700;
   letter-spacing: 0.4px; line-height: 1;
   color: rgba(255,255,255,0.62);
   text-transform: uppercase;
   margin-top: 1px;
 }
 
-/* Silhouette — explicit height to maintain portrait aspect ratio */
+/* Silhouette — ocupa todo el card (full-bleed), z-index: -1 detrás del texto */
 .pitch-mini-avatar-wrap {
-  flex: 1; min-height: 0;
-  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
+  z-index: -1;
 }
 .pitch-mini-avatar {
   width: 100%; height: 100%;
-  mix-blend-mode: screen;
 }
 
-/* Name bar */
+/* Name bar — absolute al fondo del card */
 .pitch-mini-name {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 3;
   font-family: 'Rajdhani', sans-serif;
-  font-size: 7.5px; font-weight: 700;
+  font-size: 9px; font-weight: 700;
   text-align: center; text-transform: uppercase;
   color: rgba(255,255,255,0.93);
-  padding: 2px 3px;
+  padding: 2px 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   letter-spacing: 0.4px;
-  background: rgba(0,0,0,0.32);
+  background: rgba(0,0,0,0.42);
   border-top: 1px solid rgba(255,255,255,0.12);
-  flex-shrink: 0; z-index: 3;
 }
 
 /* Captain badge */
 .pitch-mini-capitan {
-  position: absolute; top: 3px; right: 3px;
-  width: 11px; height: 11px; border-radius: 50%;
+  position: absolute; top: 4px; right: 4px;
+  width: 13px; height: 13px; border-radius: 50%;
   background: var(--gold, #f0c040); color: #000;
-  font-family: 'Rajdhani', sans-serif; font-size: 7px; font-weight: 900;
+  font-family: 'Rajdhani', sans-serif; font-size: 8px; font-weight: 900;
   display: flex; align-items: center; justify-content: center;
   z-index: 5;
 }
@@ -809,7 +838,6 @@ input[type="range"]:focus-visible {
   aspect-ratio: 0.66;
   user-select: none;
   will-change: transform;
-  transform-style: preserve-3d;
 }
 .fut-card:hover {
   /* 3D tilt handled via JS onMouseMove */
@@ -1047,21 +1075,14 @@ input[type="range"]:focus-visible {
 }
 
 .fut-card-avatar-wrap {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
+  z-index: -1;
 }
 
 .fut-card-avatar {
-  width: 112px; height: 150px;
-  overflow: hidden;
-  background: transparent;
-  flex-shrink: 0;
-  mix-blend-mode: screen;
+  width: 100%; height: 100%;
 }
 
 /* Tier-specific text color */
@@ -1090,6 +1111,7 @@ input[type="range"]:focus-visible {
 .fut-card-elite .fut-card-divider    { background: rgba(140,90,255,0.38); }
 
 .fut-card-name {
+  margin-top: auto;
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
   font-size: 15px; font-weight: 700;
   color: rgba(255,255,255,0.95);
@@ -1207,6 +1229,15 @@ input[type="range"]:focus-visible {
   50%       { box-shadow: 0 0 0 10px rgba(240,192,64,0); }
 }
 .pulse-gold { animation: pulse-gold 1.2s ease infinite; }
+
+@keyframes pulse-extra {
+  0%, 100% { box-shadow: 0 0 20px rgba(16,185,129,0.35), 0 4px 16px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 0 32px rgba(16,185,129,0.65), 0 4px 20px rgba(0,0,0,0.5); }
+}
+@keyframes shimmer-extra {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
 
 @keyframes blink-live {
   0%, 100% { opacity: 1; }
@@ -1516,9 +1547,11 @@ input[type="range"]:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: 'Inter', sans-serif;
   transition: opacity .5s ease, transform .5s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .onb-exit {
   opacity: 0;
@@ -3010,6 +3043,13 @@ input[type="range"]:focus-visible {
   background: rgba(0,0,0,0.2);
   border: 2px dashed rgba(255,255,255,0.15);
 }
+.sticker-avatar-fullbleed {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
 .sticker-avatar-initials {
   font-family: 'Bebas Neue', 'Rajdhani', sans-serif;
   font-size: 28px;
@@ -3193,3 +3233,10 @@ input[type="range"]:focus-visible {
   text-shadow: 0 0 8px rgba(240,192,64,0.5);
   text-shadow: 0 0 8px color-mix(in srgb, var(--sticker-accent) 50%, transparent);
 }
+
+/* ── MVP Reveal overlay animations ── */
+@keyframes mvpFadeIn   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes mvpPulse    { 0%,100% { transform: scale(1); opacity: 0.85 } 50% { transform: scale(1.18); opacity: 0.45 } }
+@keyframes mvpPop      { 0% { transform: scale(0) rotate(-20deg); opacity: 0 } 65% { transform: scale(1.25) rotate(5deg) } 100% { transform: scale(1) rotate(0); opacity: 1 } }
+@keyframes mvpSlideDown { from { opacity: 0; transform: translateY(-18px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes mvpCardDrop  { from { opacity: 0; transform: scale(0.65) translateY(-36px) } to { opacity: 1; transform: scale(1) translateY(0) } }
